@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Business Signal</title>
+<style>body{font-family:Inter,Arial,sans-serif;max-width:1050px;margin:40px auto;padding:0 20px;background:#0b1020;color:#f5f7ff}h1{font-size:42px;margin-bottom:6px}.muted{color:#aab3c8}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}.card{background:#151c30;border:1px solid #28324d;border-radius:16px;padding:22px}button{background:#5b7cff;color:white;border:0;border-radius:10px;padding:11px 16px;cursor:pointer}input{width:100%;box-sizing:border-box;background:#0d1425;border:1px solid #34405d;color:white;padding:12px;border-radius:9px;margin:10px 0 12px}pre{white-space:pre-wrap;line-height:1.5}.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#263451;margin:3px}</style>
+</head><body>
+<h1>Business Signal</h1><p class="muted">Enterprise AI Decision Intelligence</p>
+<div class="card"><h2>Customer decision</h2><p class="muted">Analyze revenue decline and support signals.</p><input id="customer" type="number" value="3" min="1"><button onclick="analyze()">Analyze customer</button><pre id="result">Ready.</pre></div>
+<div class="grid"><div class="card"><h2>Signals</h2><div class="badge">Revenue</div><div class="badge">Customer Risk</div><div class="badge">Support</div><div class="badge">Evidence</div></div><div class="card"><h2>API</h2><p class="muted">Backend: FastAPI<br>Database: PostgreSQL<br>Decision engine: Python</p></div></div>
+<script>async function analyze(){const id=document.getElementById('customer').value;const out=document.getElementById('result');out.textContent='Analyzing...';try{const r=await fetch('http://localhost:8000/api/v1/decision/customer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customer_id:Number(id)})});out.textContent=JSON.stringify(await r.json(),null,2)}catch(e){out.textContent='Start the FastAPI backend first.'}}</script>
+</body></html>
