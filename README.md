@@ -2,49 +2,59 @@
 
 **Enterprise AI Decision Intelligence Platform**
 
-Business Signal turns business data into explainable decisions. The first product slice combines customer revenue and support signals into a transparent risk score and recommended action. AI/RAG will sit on top of this reliable business layer.
+Business Signal combines structured business data and company documents to produce explainable, evidence-first decisions.
 
-## Current product flow
+## What it does
 
 ```text
-Customer + Sales + Support
-          ↓
-     Signal Engine
-          ↓
-     Risk Scoring
-          ↓
-  Evidence + Decision
-          ↓
- Lightweight Dashboard / API
+Business question
+      ↓
+Question / prompt guard
+      ↓
+ ┌────┴────┐
+ ▼         ▼
+SQL       RAG
+ ▼         ▼
+Business evidence + document evidence
+      ↓
+Decision engine
+      ↓
+Answer + signals + recommendation + evidence
 ```
 
-## Implemented
+## Core capabilities
 
 - FastAPI backend
-- PostgreSQL + pgvector-ready database
-- Customer, sales and support-ticket schema
-- Deterministic customer risk engine
+- PostgreSQL + pgvector
+- Customer, sales and support-ticket intelligence
+- Deterministic customer risk scoring
 - Revenue decline detection
-- High-priority support detection
-- Explainable business recommendations
-- REST API for business signals and decisions
-- Lightweight browser dashboard
-- Seeded deterministic demo dataset
-- Initial evaluation cases
-- Docker PostgreSQL setup
+- Natural-language → safe read-only SQL
+- PDF ingestion and semantic retrieval
+- Evidence-aware AI responses with Gemini
+- Prompt-injection guard
+- Basic RBAC foundation
+- Executive analytics and revenue trends
+- Browser dashboard
+- Docker local environment
+- Automated regression/evaluation checks
+- CI workflow
 
 ## API
 
-- `GET /health`
-- `GET /api/v1/business/top-customers`
-- `POST /api/v1/business/risk`
-- `POST /api/v1/decision/customer`
-
-Example request:
-
-```json
-{"customer_id": 3}
-```
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Liveness |
+| GET | `/health/ready` | Database readiness |
+| GET | `/metrics` | Lightweight app metrics |
+| GET | `/api/v1/business/summary` | Executive KPIs |
+| GET | `/api/v1/business/top-customers` | Revenue ranking |
+| POST | `/api/v1/business/risk` | Customer risk |
+| POST | `/api/v1/business/decision/{customer_id}` | Explainable intervention decision |
+| POST | `/api/v1/business/sql` | Natural-language SQL |
+| POST | `/api/v1/business/ask` | Evidence-first AI answer |
+| POST | `/api/v1/documents/upload` | Index a PDF |
+| POST | `/api/v1/documents/search` | Semantic document search |
 
 ## Run locally
 
@@ -58,16 +68,19 @@ python seed.py
 uvicorn app.main:app --reload
 ```
 
-Open `frontend/index.html` in a browser after starting the API.
+Then open `frontend/index.html`.
 
-## Next engineering layer
+For AI features, set `LLM_API_KEY` in `.env`. The SQL agent also has deterministic offline fallback queries for the demo dataset.
 
-1. Document ingestion and citations
-2. Natural-language business questions
-3. Retrieval + SQL tool routing
-4. AI explanation and verification
-5. RBAC and data freshness
-6. Automated evaluation with real metrics
-7. Deployment and observability
+## Engineering decisions
 
-**Rule:** no fake performance numbers. Every resume metric must come from an actual experiment.
+- The LLM does not directly mutate the database.
+- Generated SQL is restricted to a single read-only SELECT.
+- Suspicious prompt-injection patterns are rejected before AI execution.
+- Deterministic business rules remain the source of truth for risk scoring.
+- The LLM is used for synthesis and explanation rather than inventing business facts.
+- No fake benchmark numbers are claimed; metrics must come from executed evaluations.
+
+## Portfolio focus
+
+Business Signal demonstrates applied AI engineering across RAG, LLM tool use, structured data reasoning, AI safety, backend engineering, evaluation, and product integration.
