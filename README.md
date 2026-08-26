@@ -2,84 +2,72 @@
 
 **Enterprise AI Decision Intelligence Platform**
 
-Business Signal is a production-oriented AI system for answering business questions across unstructured documents and structured business data, while returning evidence and measurable confidence.
+Business Signal turns business data into explainable decisions. The first product slice combines customer revenue and support signals into a transparent risk score and recommended action. AI/RAG will sit on top of this reliable business layer.
 
-## Product vision
-
-```text
-Business data + Documents + Business rules
-                 ↓
-          AI reasoning layer
-                 ↓
-       Verified business signal
-                 ↓
-       Answer + evidence + confidence
-```
-
-## Planned capabilities
-
-- Document-grounded RAG with source citations
-- Natural-language-to-SQL business analysis
-- Multi-step agentic reasoning and tool calling
-- Evidence collection and answer verification
-- Role-based data access controls
-- Temporal and stale-data awareness
-- Automated evaluation for accuracy, retrieval, citations, hallucination, latency and tool reliability
-- Production API and web interface
-
-## Repository structure
+## Current product flow
 
 ```text
-backend/       FastAPI application
-frontend/      Web application (coming next)
-data/          Local development datasets and documents
-evaluation/    Evaluation datasets and experiment results
+Customer + Sales + Support
+          ↓
+     Signal Engine
+          ↓
+     Risk Scoring
+          ↓
+  Evidence + Decision
+          ↓
+ Lightweight Dashboard / API
 ```
 
-## Current status
+## Implemented
 
-**Phase 1 — Foundation**
+- FastAPI backend
+- PostgreSQL + pgvector-ready database
+- Customer, sales and support-ticket schema
+- Deterministic customer risk engine
+- Revenue decline detection
+- High-priority support detection
+- Explainable business recommendations
+- REST API for business signals and decisions
+- Lightweight browser dashboard
+- Seeded deterministic demo dataset
+- Initial evaluation cases
+- Docker PostgreSQL setup
 
-- [x] Repository initialized
-- [x] FastAPI service
-- [x] Local PostgreSQL + pgvector
-- [x] Environment template
-- [ ] Document ingestion
-- [ ] Retrieval pipeline
-- [ ] SQL reasoning
-- [ ] Agent orchestration
-- [ ] Verification and evaluation
+## API
 
-## Local setup
+- `GET /health`
+- `GET /api/v1/business/top-customers`
+- `POST /api/v1/business/risk`
+- `POST /api/v1/decision/customer`
 
-### 1. Start PostgreSQL + pgvector
+Example request:
+
+```json
+{"customer_id": 3}
+```
+
+## Run locally
 
 ```bash
 docker compose up -d
-```
-
-### 2. Create a Python environment
-
-```bash
 cd backend
 python -m venv .venv
-# Windows PowerShell
-.venv\Scripts\Activate.ps1
+# Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
-```
-
-### 3. Configure environment
-
-Copy `.env.example` to `.env` and add a local LLM API key when we connect the model layer.
-
-### 4. Start the API
-
-```bash
+python seed.py
 uvicorn app.main:app --reload
 ```
 
-Health check: `GET /health`
+Open `frontend/index.html` in a browser after starting the API.
 
-## Engineering principle
+## Next engineering layer
 
-Business Signal will not claim accuracy, performance or novelty without measuring it. Every meaningful capability will have tests and an evaluation dataset before it becomes a resume claim.
+1. Document ingestion and citations
+2. Natural-language business questions
+3. Retrieval + SQL tool routing
+4. AI explanation and verification
+5. RBAC and data freshness
+6. Automated evaluation with real metrics
+7. Deployment and observability
+
+**Rule:** no fake performance numbers. Every resume metric must come from an actual experiment.
