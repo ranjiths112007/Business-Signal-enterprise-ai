@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from app.analytics import executive_summary, revenue_trend
 from app.business import customer_risk, top_customers
 from app.decision import answer, customer_decision
+from app.prompt_guard import sanitize_question
 from app.sql_agent_v1 import ask_sql
 
 router = APIRouter(prefix="/api/v1/business", tags=["Business Intelligence"])
@@ -37,8 +38,14 @@ def get_customer_decision(customer_id: int):
 
 @router.post("/sql")
 def ask_sql_endpoint(request: AskRequest):
-    try: return ask_sql(request.question)
-    except ValueError as exc: raise HTTPException(status_code=400, detail=str(exc))
+    try:
+        return ask_sql(sanitize_question(request.question))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 @router.post("/ask")
-def ask_business(request: AskRequest): return answer(request.question)
+def ask_business(request: AskRequest):
+    try:
+        return answer(sanitize_question(request.question))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
