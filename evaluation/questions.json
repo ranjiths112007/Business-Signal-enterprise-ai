@@ -1,0 +1,6 @@
+[
+  {"id":"Q001","type":"risk","customer_id":3,"expected":"HIGH"},
+  {"id":"Q002","type":"risk","customer_id":7,"expected":"HIGH"},
+  {"id":"Q003","type":"risk","customer_id":1,"expected":"LOW"},
+  {"id":"Q004","type":"risk","customer_id":2,"expected":"LOW"}
+]
