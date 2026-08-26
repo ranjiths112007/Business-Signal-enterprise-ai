@@ -2,12 +2,17 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.business import customer_risk, top_customers
+from app.decision import answer, customer_decision
 
 router = APIRouter(prefix="/api/v1/business", tags=["Business Intelligence"])
 
 
 class RiskRequest(BaseModel):
     customer_id: int = Field(ge=1)
+
+
+class AskRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=2000)
 
 
 @router.get("/top-customers")
@@ -21,3 +26,16 @@ def get_customer_risk(request: RiskRequest):
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     return result
+
+
+@router.post("/decision/{customer_id}")
+def get_customer_decision(customer_id: int):
+    result = customer_decision(customer_id)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+@router.post("/ask")
+def ask_business(request: AskRequest):
+    return answer(request.question)
