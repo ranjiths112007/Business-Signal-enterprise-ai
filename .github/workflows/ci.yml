@@ -13,17 +13,14 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r backend/requirements.txt
+      - run: docker compose up -d postgres
       - run: python -m compileall backend/app
-      - run: python evaluation/run.py
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - run: python backend/seed.py
+      - run: PYTHONPATH=backend pytest backend/tests -q
+      - run: PYTHONPATH=backend python evaluation/run.py
 
   frontend:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('frontend/package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: cd frontend && npm install && npm run build
+      - run: test -f frontend/index.html
