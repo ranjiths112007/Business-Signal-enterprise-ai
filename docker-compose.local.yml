@@ -1,0 +1,23 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: business_signal
+      POSTGRES_PASSWORD: business_signal
+      POSTGRES_DB: business_signal
+    ports:
+      - "5432:5432"
+    volumes:
+      - business_signal_db:/var/lib/postgresql/data
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql://business_signal:business_signal@db:5432/business_signal
+      LLM_PROVIDER: gemini
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+volumes:
+  business_signal_db:
