@@ -14,6 +14,16 @@ jobs:
           python-version: '3.12'
       - run: pip install -r backend/requirements.txt
       - run: docker compose up -d postgres
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if docker exec business-signal-postgres pg_isready -U business_signal -d business_signal; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs business-signal-postgres
+          exit 1
       - run: python -m compileall backend/app
       - run: python backend/seed.py
       - run: PYTHONPATH=backend pytest backend/tests -q
