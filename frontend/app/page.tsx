@@ -41,6 +41,11 @@ export default function Home() {
   const [evidence, setEvidence] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [dataFile, setDataFile] = useState<File | null>(null);
+  const [dataset, setDataset] = useState("customers");
+  const [replaceData, setReplaceData] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
   const [active, setActive] = useState("Overview");
 
   useEffect(() => {
@@ -73,6 +78,32 @@ export default function Home() {
       setError(e.message || "Request failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function uploadData() {
+    if (!dataFile || uploading) return;
+    setUploading(true);
+    setError("");
+    setUploadMessage("");
+    try {
+      const form = new FormData();
+      form.append("file", dataFile);
+      const response = await fetch(`${API}/api/v1/data/upload?dataset=${dataset}&replace=${replaceData}`, { method: "POST", body: form });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.detail || "Upload failed");
+      setUploadMessage(`${result.rows_imported} rows imported into ${dataset.replace("_", " ")}.`);
+      setDataFile(null);
+      const [top, stats] = await Promise.all([
+        fetch(`${API}/api/v1/business/top-customers`).then((item) => item.json()),
+        fetch(`${API}/api/v1/business/summary`).then((item) => item.json()),
+      ]);
+      setCustomers(top.customers || []);
+      setSummary(stats || {});
+    } catch (e: any) {
+      setError(e.message || "Upload failed");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -148,6 +179,18 @@ export default function Home() {
           <div className="suggestions">{prompts.map((p) => <button key={p} onClick={() => setQ(p)}>{p}</button>)}</div>
           {error && <div className="errorBox">{error}</div>}
           {answer && <div className="answerBox"><div className="answerHead"><span><span className="liveDot"/>Decision returned</span><span>Evidence {evidence ? "available" : "not attached"}</span></div><div className="answerText">{answer}</div></div>}
+        </section>
+
+        <section className="panel importPanel">
+          <div className="panelHeader compact"><div><div className="sectionKicker"><Icon name="database"/> YOUR BUSINESS DATA</div><h3>Import a CSV</h3><p>Upload your own customers, sales, or support records to calculate the dashboard from your data.</p></div></div>
+          <div className="importControls">
+            <select value={dataset} onChange={(e) => setDataset(e.target.value)} aria-label="Data type"><option value="customers">Customers</option><option value="sales">Sales</option><option value="support_tickets">Support tickets</option></select>
+            <input type="file" accept=".csv,text/csv" onChange={(e) => setDataFile(e.target.files?.[0] || null)} aria-label="CSV file" />
+            <label className="replaceToggle"><input type="checkbox" checked={replaceData} onChange={(e) => setReplaceData(e.target.checked)} /> Replace this dataset</label>
+            <button className="smallButton" onClick={uploadData} disabled={!dataFile || uploading}>{uploading ? "Importing..." : "Import data"}<Icon name="arrow" /></button>
+          </div>
+          <p className="importHint">Customers: name, industry, annual_value · Sales: customer_id, amount, sale_date · Support: customer_id, priority, status, subject, created_at</p>
+          {uploadMessage && <div className="successBox">{uploadMessage}</div>}
         </section>
 
         <section className="twoCol">

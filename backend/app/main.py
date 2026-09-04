@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.business_api import router as business_router
 from app.decision_api import router as decision_router
 from app.document_api import router as document_router
+from app.data_api import router as data_router
 from app.database import init_db
 from app.health import router as health_router
 
@@ -12,6 +13,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.include_router(business_router)
 app.include_router(decision_router)
 app.include_router(document_router)
+app.include_router(data_router)
 app.include_router(health_router)
 
 @app.on_event("startup")

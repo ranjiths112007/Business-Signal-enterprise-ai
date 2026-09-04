@@ -22,6 +22,7 @@ services:
       DATABASE_URL: postgresql://business_signal:business_signal@postgres:5432/business_signal
       LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
       LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.6-flash}
     ports:
       - "8000:8000"
     depends_on:

@@ -9,10 +9,12 @@ INDUSTRIES = ["Retail", "SaaS", "Logistics", "Healthcare", "Finance", "Energy", 
 
 def seed() -> None:
     init_db()
+    with get_connection() as conn:
+        if conn.execute("SELECT COUNT(*) FROM customers").fetchone()[0] > 0:
+            return
     random.seed(42)
     today = date.today()
     with get_connection() as conn:
-        conn.execute("TRUNCATE support_tickets, sales, customers RESTART IDENTITY CASCADE")
         for i, name in enumerate(NAMES, 1):
             conn.execute("INSERT INTO customers (name, industry, annual_value) VALUES (%s,%s,%s)", (name, INDUSTRIES[i-1], 50000 + i * 25000))
             for days in range(15, 181, 15):
