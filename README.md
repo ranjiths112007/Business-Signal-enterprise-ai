@@ -68,7 +68,17 @@ python seed.py
 uvicorn app.main:app --reload
 ```
 
-Then open `frontend/index.html`.
+In a second terminal, start the dashboard:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Alternatively, `docker compose up --build` starts PostgreSQL, loads the demo dataset, and starts the API together before you open the dashboard.
 
 For AI features, set `LLM_API_KEY` in `.env`. The SQL agent also has deterministic offline fallback queries for the demo dataset.
 

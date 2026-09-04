@@ -38,8 +38,8 @@ def customer_risk(customer_id: int) -> dict:
 def top_customers(limit: int = 10) -> list[dict]:
     with get_connection() as conn:
         rows = conn.execute(
-            """SELECT c.id, c.name, COALESCE(SUM(s.amount),0) revenue
+            """SELECT c.id, c.name, c.industry, COALESCE(SUM(s.amount),0) revenue
                FROM customers c LEFT JOIN sales s ON s.customer_id=c.id
-               GROUP BY c.id, c.name ORDER BY revenue DESC LIMIT %s""", (limit,)
+               GROUP BY c.id, c.name, c.industry ORDER BY revenue DESC LIMIT %s""", (limit,)
         ).fetchall()
-    return [{"customer_id": r[0], "customer": r[1], "revenue": float(r[2])} for r in rows]
+    return [{"customer_id": r[0], "customer": r[1], "industry": r[2], "revenue": float(r[3])} for r in rows]
