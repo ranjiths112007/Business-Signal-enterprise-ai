@@ -17,10 +17,16 @@ def classify_question(question: str) -> str:
 def build_business_context(question: str) -> dict[str, Any]:
     q = question.lower()
     context: dict[str, Any] = {"generated_at": datetime.utcnow().isoformat() + "Z"}
+    customers = top_customers(limit=50)
     if any(x in q for x in ["top", "highest", "revenue", "customer"]):
-        context["top_customers"] = top_customers(limit=10)
+        context["top_customers"] = customers[:10]
     if any(x in q for x in ["risk", "churn", "danger", "at risk"]):
-        context["risk_analysis"] = customer_risk()
+        risks = []
+        for customer in customers:
+            result = customer_risk(customer["customer_id"])
+            if "error" not in result:
+                risks.append(result)
+        context["risk_analysis"] = risks
     return context
 
 
