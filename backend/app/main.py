@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,19 +11,21 @@ from app.database import init_db
 from app.health import router as health_router
 
 app = FastAPI(title="Business Signal API", description="Enterprise AI decision intelligence platform", version="1.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
+
 app.include_router(business_router)
 app.include_router(decision_router)
 app.include_router(document_router)
 app.include_router(data_router)
 app.include_router(health_router)
 
+
 @app.on_event("startup")
 def startup() -> None:
-    try:
-        init_db()
-    except Exception:
-        pass
+    init_db()
+
 
 @app.get("/health")
 def health() -> dict[str, str]:
