@@ -23,13 +23,15 @@ def customer_risk(customer_id: int) -> dict:
             "SELECT COUNT(*) FROM support_tickets WHERE customer_id=%s AND status != 'closed' AND priority='high'", (customer_id,)
         ).fetchone()[0]
 
+    revenue = float(revenue or 0)
+    previous = float(previous or 0)
     revenue_drop = 0 if previous == 0 else round((previous - revenue) / previous * 100, 1)
     score = min(100, max(0, int(revenue_drop * 1.2) + tickets * 8 + open_high * 12))
     level = "HIGH" if score >= 60 else "MEDIUM" if score >= 30 else "LOW"
     return {
         "customer_id": customer[0], "customer": customer[1], "industry": customer[2],
-        "annual_value": float(customer[3]), "revenue_90d": float(revenue),
-        "revenue_previous_90d": float(previous), "revenue_drop_percent": revenue_drop,
+        "annual_value": float(customer[3]), "revenue_90d": revenue,
+        "revenue_previous_90d": previous, "revenue_drop_percent": revenue_drop,
         "open_tickets": tickets, "high_priority_tickets": open_high,
         "risk_score": score, "risk_level": level,
     }
