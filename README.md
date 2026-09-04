@@ -78,9 +78,9 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Alternatively, `docker compose up --build` starts PostgreSQL, loads the demo dataset, and starts the API together before you open the dashboard.
+Alternatively, `docker compose up --build` starts an empty PostgreSQL database and the API together before you open the dashboard. Import your CSV files from the dashboard to populate it.
 
-For AI features, set `LLM_API_KEY` in `.env`. The SQL agent also has deterministic offline fallback queries for the demo dataset.
+For AI features, set `LLM_API_KEY` in `.env`. The dashboard requires imported business data before it can calculate company-specific results.
 
 ## Engineering decisions
 

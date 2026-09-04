@@ -12,7 +12,7 @@ from app.health import router as health_router
 
 app = FastAPI(title="Business Signal API", description="Enterprise AI decision intelligence platform", version="1.1.0")
 
-cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",") if origin.strip()]
+cors_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_methods=["GET", "POST", "OPTIONS"], allow_headers=["*"])
 
 app.include_router(business_router)
