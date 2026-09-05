@@ -17,5 +17,6 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   customer_id INTEGER NOT NULL REFERENCES customers(id),
   priority TEXT NOT NULL CHECK (priority IN ('low','medium','high')),
   status TEXT NOT NULL CHECK (status IN ('open','pending','closed')),
+  subject TEXT NOT NULL,
   created_at DATE NOT NULL
 );
