@@ -26,7 +26,7 @@ The database creates a deterministic demo business dataset automatically when em
 
 - **60 customers** across 10 industries
 - **480 sales records** across Jan–Aug 2026
-- **448 support tickets** with realistic priority/status patterns
+- **380 support tickets** with realistic priority/status patterns
 - several deliberately declining accounts for risk analysis
 
 Try:
@@ -98,6 +98,14 @@ To load the richer demo dataset from scratch:
 docker compose down -v
 docker compose up --build
 ```
+
+## Documentation
+
+A comprehensive project documentation source is available at:
+
+`docs/BUSINESS_SIGNAL_PROJECT_DOCUMENTATION.md`
+
+It covers the architecture, data model, AI engineering techniques, RAG flow, natural-language SQL, risk engine, API surface, testing, deployment, lessons learned, limitations, roadmap, and interview walkthrough.
 
 ## Interview story
 
