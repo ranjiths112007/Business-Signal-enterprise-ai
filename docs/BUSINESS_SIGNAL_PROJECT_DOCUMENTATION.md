@@ -2,60 +2,73 @@
 
 > **Ask a business question. Find the signal.**
 >
-> An AI engineering project that combines structured business data, SQL, document retrieval, deterministic analysis, and grounded AI responses.
+> A technical project showcase for an end-to-end AI engineering pipeline that combines structured business data, SQL, deterministic analysis, document retrieval, vector search, and grounded LLM responses.
 
-## 1. Why I built it
+## 1. Project thesis
 
-I wanted a project that showed more than a model call. Business Signal treats the language model as one component in a larger evidence pipeline:
+Business Signal is intentionally a project showcase, not a production SaaS product. The point is to demonstrate the engineering system behind an AI answer:
 
-**question -> source/tool selection -> SQL / retrieval / business rules -> evidence -> AI explanation**
+```text
+Question
+  -> source / intent selection
+  -> SQL / retrieval / business rules
+  -> evidence
+  -> optional LLM explanation
+  -> answer + evidence
+```
 
-The project is intentionally a showcase rather than a production SaaS application. The codebase is small enough to explain end to end while still demonstrating practical AI engineering skills.
+The language model is not treated as the source of truth. Facts should come from the underlying data or retrieved documents; the model is used to translate, synthesize, and explain those facts.
 
 ## 2. What the project demonstrates
 
 - Natural-language business analysis
 - Natural-language-to-SQL
-- PostgreSQL analytics
+- PostgreSQL analytics and joins
 - PostgreSQL + pgvector vector search
 - PDF ingestion and semantic retrieval (RAG)
+- Sentence-transformer embeddings
 - Deterministic customer risk scoring
 - Evidence-first answer generation
 - Prompt-injection guard
 - Read-only SQL validation
 - FastAPI backend engineering
-- Next.js frontend engineering
+- Next.js / React frontend engineering
 - CSV inspection and column mapping
 - Pytest regression tests
 - Docker Compose local runtime
 - GitHub Actions CI foundation
 
-## 3. Architecture
+## 3. System architecture
 
 ```text
 User
   |
   v
-Next.js UI
+Next.js showcase UI
   |
   v
 FastAPI API
   |
-  +--> prompt guard
+  +--> input sanitation
   +--> question classification
   |      |
   |      +--> business context --> PostgreSQL
-  |      |                         deterministic rules
+  |      |                         deterministic analytics
+  |      |                         customer risk rules
   |      |
   |      +--> document context --> PDF chunks
   |                                embeddings
   |                                pgvector
   |
-  +--> optional Gemini explanation
+  +--> optional Gemini synthesis
   |
   v
 answer + evidence
 ```
+
+### Architectural principle
+
+Structured questions should be computed from structured data. Document questions should retrieve document evidence. Mixed or general questions may combine both. The LLM sits downstream of evidence gathering rather than upstream of factual computation.
 
 ## 4. Repository structure
 
@@ -63,7 +76,7 @@ answer + evidence
 |---|---|
 | `backend/app/business.py` | Customer risk scoring and revenue ranking |
 | `backend/app/intelligence.py` | Question classification and evidence assembly |
-| `backend/app/decision.py` | Customer decisions and grounded answer fallback / generation |
+| `backend/app/decision.py` | Customer decisions and grounded answer generation/fallback |
 | `backend/app/sql_agent.py` | Natural-language SQL generation and validation |
 | `backend/app/retrieval.py` | PDF ingestion, chunking, embeddings, vector search |
 | `backend/app/database.py` | Database schema and deterministic demo seed |
@@ -72,7 +85,8 @@ answer + evidence
 | `frontend/app/page.tsx` | Showcase UI and data workflow |
 | `frontend/app/globals.css` | Visual system and responsive layout |
 | `data/sample/` | Small example CSVs |
-| `docker-compose.yml` | Local PostgreSQL + API stack |
+| `docker-compose.yml` | PostgreSQL + pgvector and API runtime |
+| `README.md` | Setup, project positioning and demo story |
 
 ## 5. Data model
 
@@ -92,46 +106,64 @@ answer + evidence
 
 `id, source, page, content, embedding, created_at`
 
-The model is intentionally compact: enough relationships to demonstrate joins, aggregation, trends, operational load, and risk without turning the project into a full ERP schema.
+Relationships are centered on `customers.id`. Sales and support tickets reference the customer so that one question can combine commercial behavior and operational friction.
 
-## 6. Deterministic demo data
+The document table is intentionally separate because vector retrieval has a different access pattern from transactional analytics.
 
-The application generates a reproducible demo dataset in code instead of storing a huge fixture in the repository.
+## 6. Deterministic demo dataset
+
+The application generates a reproducible demo dataset in code rather than checking a huge fixture into the repository.
 
 - **60 customers** across 10 industries
 - **480 sales records** covering January-August 2026
-- **Hundreds of support tickets** with varied priority/status patterns
-- Several deliberately declining customer accounts to make risk analysis visible
+- **448 support tickets** with varied priority/status patterns
+- **5 deliberately declining customer accounts** for risk scenarios
+- Additional upward-trending accounts to avoid a uniform dataset
 - `random.seed(42)` for repeatability
 
-To rebuild from scratch:
+The demo seed only runs when the database is empty and `DEMO_DATA=true`.
+
+To force a clean dataset reset:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
+### Why procedural demo data?
+
+The seed stays version-controlled as code, takes little repository space, and creates a controlled environment where specific behaviors can be reproduced. The goal is not maximum row count; the goal is enough variation for useful questions and a believable demonstration.
+
 ## 7. Business analytics layer
 
-Core metrics are calculated from PostgreSQL instead of being invented by an LLM.
+Core facts are calculated directly from PostgreSQL and deterministic Python logic.
 
 Examples:
 
-- Total customer count
-- Recorded revenue
+- Customer count
+- Total recorded revenue
 - Top customers by revenue
 - Revenue trend
 - Revenue by industry
 - Support backlog
 - High-priority support load
-- Customer support activity
-- Customer risk indicators
+- Customer ticket load
+- Customer risk signals
+
+Typical examples:
+
+```text
+Who generated the most revenue?
+Which industry generated the most revenue?
+How many customers do we have?
+What is the current support load?
+```
 
 ## 8. Customer risk engine
 
-For each customer the system compares the trailing 90-day revenue with the previous 90-day period and combines that signal with unresolved support activity.
+For a customer, the system compares recent revenue with the previous comparison window and combines that signal with unresolved support activity.
 
-A simplified view of the current heuristic:
+Simplified heuristic:
 
 ```text
 risk score = revenue decline contribution
@@ -139,77 +171,133 @@ risk score = revenue decline contribution
            + high-priority ticket contribution
 ```
 
-The score is bounded to 0-100 and mapped to `LOW`, `MEDIUM`, or `HIGH`.
+Current implementation uses these weighted components:
 
-This is an explainable heuristic, not a trained churn model.
+```text
+revenue decline % * 1.2
+open tickets       * 8
+high-priority      * 12
+```
+
+The final score is bounded from 0-100 and mapped to:
+
+- `LOW`
+- `MEDIUM`
+- `HIGH`
+
+This is deliberately an explainable heuristic, not a trained churn model. The project does not claim predictive ML capability where no trained model or labeled historical outcome exists.
 
 ## 9. Natural-language SQL
 
-With Gemini enabled, the SQL path converts a user question into one PostgreSQL `SELECT` statement using a constrained schema.
+With Gemini enabled, a user question can be translated into one PostgreSQL `SELECT` query using a constrained schema.
 
-Safety checks then reject:
+The generated SQL passes through validation before execution.
 
-- `INSERT`
-- `UPDATE`
-- `DELETE`
-- DDL operations such as `DROP`, `ALTER`, `CREATE`
-- Multiple statements
-- Non-SELECT outputs
+### Current validation contract
 
-A result limit is also applied when the generated SQL does not include one.
+- query must begin with `SELECT`
+- write operations are rejected
+- DDL operations are rejected
+- multiple statements are rejected
+- a row limit is added when one is not present
+
+Rejected examples include:
+
+```text
+INSERT
+UPDATE
+DELETE
+DROP
+ALTER
+TRUNCATE
+CREATE
+GRANT
+REVOKE
+COPY
+CALL
+```
+
+The current validation is application-level protection. Production hardening should add a read-only database role and parser/AST-based policy.
 
 ## 10. RAG / document retrieval
 
-The document path handles knowledge that lives in PDFs rather than relational rows.
-
-Pipeline:
+The document path handles knowledge that lives in PDFs instead of relational tables.
 
 ```text
 PDF
  -> pypdf extraction
- -> text chunks (900 chars, 120 overlap)
- -> Sentence Transformer embeddings
+ -> normalized text
+ -> ~900 character chunks
+ -> ~120 character overlap
+ -> Sentence Transformer embedding
  -> PostgreSQL vector(384)
  -> similarity search
- -> top-k evidence passages
+ -> top-k passages
+ -> evidence context
 ```
 
-Using PostgreSQL + pgvector keeps the local stack simple because the relational and vector data live in one database.
+Each stored chunk keeps source and page metadata so the final evidence can be traced back to the original document location.
 
-## 11. Evidence-first answer generation
+Using PostgreSQL + pgvector keeps the local architecture compact by storing relational and vector data in the same database technology.
 
-The unified `/api/v1/business/ask` flow gathers evidence before generation.
+## 11. Evidence orchestration
 
-Gemini is instructed to:
+The unified analysis flow first gathers evidence, then produces an explanation.
 
-- answer only from supplied context
-- never invent facts
-- give the direct answer first
-- distinguish signals from recommendations
-- say what is missing when the evidence truly cannot answer the question
+```text
+question
+  -> classify intent
+  -> build evidence
+  -> business analytics and/or document retrieval
+  -> deterministic checks
+  -> grounded response
+```
 
-When no LLM key is configured, deterministic fallback answers handle core business questions.
+The evidence object can contain:
 
-## 12. Prompt and SQL safety
+```text
+business.summary
+business.top_customers
+business.risk_analysis
+business.support_breakdown
+business.industry_summary
+documents[]
+```
 
-Two boundaries are treated separately:
+This separation makes it possible to inspect what the model was given rather than treating the final prose as the only artifact.
 
-1. User question -> prompt sanitization
-2. LLM output -> SQL validation
+## 12. Gemini usage
 
-This is intentionally a lightweight portfolio implementation. Production hardening would add a full SQL parser/AST validation layer, a dedicated read-only database role, stronger authentication, and monitoring.
+Gemini is used in two bounded places:
+
+1. Natural-language question -> SQL translation
+2. Evidence -> human-readable business explanation
+
+The answer prompt is explicitly evidence-first. It instructs the model to answer from the supplied context, avoid invented facts, and state what information is missing when the context truly cannot answer the question.
+
+When no API key is configured, deterministic fallbacks provide useful responses for the common business questions supported by the demo schema.
 
 ## 13. CSV onboarding
 
-CSV imports follow an inspect -> map -> import workflow.
+The CSV flow is designed as:
+
+```text
+upload
+  -> inspect columns
+  -> detect likely mappings
+  -> user reviews / edits mapping
+  -> import
+```
 
 Supported datasets:
 
-- Customers: company/name, industry, annual value
-- Sales: customer name/id, amount, date
-- Support: customer name/id, priority, status, issue, date
+| Dataset | Typical fields |
+|---|---|
+| Customers | company/name, industry, annual value |
+| Sales | customer name/id, amount, date |
+| Support | customer name/id, priority, status, issue, date |
 
-The UI detects common column variations and lets the user confirm mappings before import. This avoids forcing users to learn the internal database schema.
+This matters because users should not have to know the internal database column names before they can try the system.
 
 ## 14. FastAPI API surface
 
@@ -220,189 +308,233 @@ The UI detects common column variations and lets the user confirm mappings befor
 | GET | `/api/v1/business/top-customers` | Ranked customer revenue |
 | POST | `/api/v1/business/risk` | Customer risk analysis |
 | POST | `/api/v1/business/decision/{customer_id}` | Intervene / monitor decision |
-| POST | `/api/v1/business/sql` | Natural-language SQL |
-| POST | `/api/v1/business/ask` | Unified analysis |
+| POST | `/api/v1/business/sql` | Natural-language SQL execution |
+| POST | `/api/v1/business/ask` | Unified analysis and evidence |
 | POST | `/api/v1/data/analyze` | Inspect CSV columns |
 | POST | `/api/v1/data/upload` | Import mapped CSV |
 
-## 15. Frontend
+The route layer remains thin: validate the request, call domain logic, return structured JSON.
 
-The frontend is a project showcase rather than a fake SaaS dashboard.
+## 15. Frontend showcase
 
-Main sections:
+The UI is deliberately positioned as a technical project showcase rather than a production SaaS dashboard.
 
-- Hero and project positioning
-- Ask Business Signal
-- Supported question guide
+Main areas:
+
+- Project hero and thesis
+- Natural-language question runner
+- Supported-question guide
 - Optional CSV upload and mapping
-- Result metrics
+- Results and summary metrics
 - Top customer list
 - Evidence trace
 - Repository source link
 
-The design uses the project's existing teal / deep-ink visual language with readable typography and responsive behavior.
+The UI's job is to make the engineering pipeline understandable within a few seconds of opening the project.
 
-## 16. Example questions
+## 16. Demo question catalog
 
-The current demo is designed for questions such as:
+The current dataset is designed for questions such as:
+
+### Revenue
+
+- Who generated the most revenue?
+- Which are the top 5 customers by revenue?
+- What is the total revenue?
+- What is the average sale amount?
+- Which industry generated the most revenue?
+- Which industries contribute the most revenue?
+- Show the revenue trend.
+
+### Customers
+
+- How many customers do we have?
+- Which customers have the highest annual value?
+- Which industries have the most customers?
+- Which company is our biggest customer?
+
+### Risk
 
 - Which customers are at risk and why?
-- Who generated the most revenue?
-- What is the current support load?
-- Which are the top 5 customers by revenue?
-- Which industry generated the most revenue?
-- How many customers do we have?
 - Which customers have declining revenue?
+- Which customers need intervention?
+- Who are the highest-risk customers?
+- Which customers have unresolved high-priority issues?
+
+### Support
+
+- What is the current support load?
+- How many support tickets are open?
 - How many high-priority tickets are open?
 - Which customers have the most support tickets?
-- Give me a business snapshot.
-- What is the average sale amount?
-- Which industries contribute the most revenue?
-- Which customers have the highest annual value?
-- What is the revenue trend?
-- Which industry has the most customers?
-- Which customers have unresolved high-priority issues?
-- Who are the highest-risk customers?
+- What is the support breakdown by status?
 
-The examples are a guide to the current connected data model, not a claim that arbitrary questions about nonexistent fields can be answered.
+These examples describe the current evidence model. They are not a claim that questions about nonexistent fields can be answered.
 
 ## 17. Docker runtime
 
-The local Compose stack uses:
+The local stack uses:
 
-- `pgvector/pgvector:pg17` for PostgreSQL + vector support
-- FastAPI on port 8000
-- PostgreSQL on port 5432
-- Next.js development server on port 3050
+- `pgvector/pgvector:pg17`
+- PostgreSQL on port `5432`
+- FastAPI on port `8000`
+- Next.js development server on port `3050` when run separately
 
-Run the stack:
+Primary command:
 
 ```bash
 docker compose up --build
 ```
 
-Enable Gemini with `LLM_API_KEY` in the environment.
+Gemini can be enabled through environment configuration such as:
+
+```text
+LLM_API_KEY=<your-key>
+LLM_MODEL=gemini-3.6-flash
+```
 
 ## 18. Dependencies
 
-Backend:
+### Backend
 
 - FastAPI 0.116.1
 - Uvicorn 0.35.0
+- pydantic-settings 2.10.1
 - psycopg 3.2.9
 - pgvector 0.4.1
 - pypdf 6.0.0
 - sentence-transformers 5.1.0
 - google-genai 1.30.0
+- python-multipart 0.20.0
 - pytest 8.4.1
 
-Frontend:
+### Frontend
 
 - Next.js 14.2.31
 - React 18.3.1
 - TypeScript 5.7.3
 
-## 19. Testing
+## 19. Testing and quality
 
-Regression coverage includes:
+Regression coverage protects the most important intelligence behaviors:
 
-- risk context contains customer risk records
-- revenue context returns ordered top customers
-- support questions always receive core summary evidence
-- SQL safety rejects non-read-only statements
+- risk context returns customer risk records
+- revenue context returns an ordered customer ranking
+- support questions receive summary evidence
+- SQL security rejects non-read-only statements
+- frontend build catches TypeScript and UI integration issues
 
-The project is configured for GitHub Actions. The latest connector view did not expose a completed workflow run for the most recent changes, so a final CI pass is not claimed here without verification.
+GitHub Actions provides a CI foundation. Recent connector access did not expose a completed workflow result for the newest documentation commits, so this document does not claim a fresh CI pass without verification.
 
-## 20. Real engineering lessons
+## 20. Engineering lessons
 
-### Evidence was too narrow
+### Evidence coverage matters more than dataset size
 
-An earlier implementation returned a generic insufficient-evidence response for questions that the database could answer. The evidence builder was expanded so core business questions receive broader context instead of depending on one narrow keyword branch.
+A larger database does not help if the evidence layer cannot retrieve the right aggregates. The project therefore expanded the business context with support breakdowns, industry summaries, customer rankings and risk analysis.
 
-### Demo data needed to feel real
+### The fallback path matters
 
-Rather than checking in a giant CSV, the application now generates a richer deterministic dataset at startup when the database is empty.
+A demo that only works when an external LLM credential exists is fragile. Deterministic fallbacks make common business questions demonstrable locally.
 
-### Database volumes can hide code changes
+### Demo state must be reproducible
 
-A previously initialized PostgreSQL volume will keep old demo rows. That is why the reset command removes the volume when the new seed needs to be loaded.
+Procedural seeding with a fixed seed gives a fresh developer the same intended scenario after a volume reset.
 
-### Users should not need internal schemas
+### UI is part of the engineering story
 
-The CSV mapping layer hides database naming details behind an inspect-and-confirm workflow.
+A portfolio project can have correct backend logic and still feel broken if the interface is hard to read. Typography, spacing, question examples and evidence visibility are part of the showcase quality.
 
-### UI readability matters
+### Be honest about model boundaries
 
-A technically correct demo can still fail as a portfolio piece if the typography is too small. Readability is part of the product, not an afterthought.
+The project uses a deterministic heuristic for risk, not a trained ML model. It uses RAG for documents, not magical “knowledge.” It translates language to constrained SQL rather than giving an LLM unrestricted database access.
 
-## 21. AI engineering strengths
+## 21. AI engineering skill map
 
-This project demonstrates practical work across multiple layers rather than only prompting:
+Business Signal demonstrates work across several AI engineering layers:
 
-- LLM API integration
-- RAG architecture
-- embeddings and vector search
-- natural-language SQL
-- prompt design
-- grounding and evidence handling
-- safety controls
-- deterministic decision logic
-- relational analytics
-- API design
-- frontend integration
-- testing and CI
-- Dockerized local environments
+| Skill | Where it appears |
+|---|---|
+| LLM API integration | Gemini answer generation + NL-to-SQL |
+| RAG | PDF chunking, embeddings, vector retrieval |
+| Embeddings | Sentence Transformers |
+| Vector search | pgvector similarity queries |
+| Natural-language SQL | `sql_agent.py` |
+| Grounding | Evidence object + evidence-first prompt |
+| Safety | Prompt guard + SQL validation |
+| Data engineering | PostgreSQL schema + deterministic seed |
+| Business analytics | Revenue, support and risk logic |
+| Backend engineering | FastAPI + Pydantic |
+| Frontend engineering | Next.js / React |
+| Testing | pytest regression suite |
+| Delivery | Docker Compose + GitHub Actions |
 
-## 22. 90-second interview explanation
+## 22. Interview walkthrough
 
-> Business Signal is an evidence-first AI business analysis project. A user asks a business question in natural language, and the system gathers the right evidence from PostgreSQL, deterministic business rules, or document retrieval. When an LLM is configured, Gemini explains the evidence rather than acting as the source of truth. I built it this way because I wanted to demonstrate AI engineering as system design, not just model calling.
-
-The best concrete walkthrough is the risk question:
+The cleanest live demo is the risk question:
 
 ```text
 Which customers are at risk and why?
- -> classify as business intent
- -> read sales + support data
- -> calculate deterministic risk signals
- -> assemble evidence
- -> optional grounded Gemini explanation
+        |
+        v
+classify_question()
+        |
+        v
+business evidence
+  - revenue summary
+  - customer ranking
+  - risk calculations
+  - support activity
+        |
+        v
+optional Gemini explanation
+        |
+        v
+answer + evidence
 ```
+
+### 90-second explanation
+
+> I built Business Signal as an evidence-first AI engineering project. A user asks a business question in natural language, and the system gathers the right evidence from PostgreSQL, deterministic business rules, or document retrieval. When Gemini is enabled, the model explains the supplied evidence rather than acting as the source of truth. I added natural-language SQL, RAG with pgvector, customer risk scoring, prompt and SQL safety checks, CSV mapping, Docker setup and regression tests because I wanted the project to demonstrate the complete AI application pipeline instead of just a model call.
 
 ## 23. Known boundaries
 
-This showcase does not claim to be production-ready.
+This is a portfolio showcase and should be described accurately.
 
-Current boundaries include:
+Current limitations include:
 
 - no production multi-tenancy
 - RBAC foundation rather than full authorization enforcement
 - lightweight SQL validation rather than a full parser
-- heuristic risk scoring rather than a trained ML model
-- limited schema coverage compared with a real enterprise warehouse
+- heuristic risk scoring rather than a trained churn model
+- limited schema coverage versus a real enterprise warehouse
 - retrieval quality depends on the indexed documents
+- no claim of production-grade security or reliability
 
 ## 24. Production roadmap
 
-A realistic next path would be:
+A realistic hardening path is:
 
-1. Add a typed tool router for business vs document tasks.
-2. Replace regex SQL checks with AST-based validation.
-3. Enforce a read-only database role.
-4. Add authentication and real RBAC.
-5. Add tracing, observability, and evaluation datasets.
-6. Make the model provider interface configurable.
-7. Add production secrets handling, HTTPS, rate limiting, and monitoring.
+1. Add a stronger typed tool/router boundary.
+2. Replace regex SQL checks with parser/AST-based validation.
+3. Execute generated queries through a dedicated read-only database role.
+4. Enforce authentication, RBAC and tenant isolation.
+5. Add tracing, observability and structured evaluation datasets.
+6. Add document ACLs and tenant-aware retrieval.
+7. Expand business analytics only when the underlying schema supports it.
+8. Add production secrets management, rate limiting, HTTPS and monitoring.
 
-## 25. Closing
+## 25. Documentation artifact
 
-Business Signal is deliberately small. The goal is clarity, not feature count.
+The accompanying high-fidelity project documentation is designed as a technical dossier covering the architecture, implementation, data model, analytics, RAG, LLM integration, safety, API surface, UI, testing, runbook, interview story, skill map, limitations and roadmap.
 
-The engineering story is the product:
+The source for the dossier lives in this directory so the written explanation can stay versioned with the codebase.
+
+## 26. Closing
+
+Business Signal is deliberately small in surface area and focused in its engineering story.
+
+The core message is:
 
 **question -> evidence -> decision logic -> grounded explanation**
 
-That is the behavior I want this project to communicate in an AI engineering portfolio.
-
----
-
-**Repository:** `https://github.com/ranjiths112007/Business-Signal-enterprise-ai`
+That is the part worth showing in an AI engineering portfolio.
