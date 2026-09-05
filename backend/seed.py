@@ -3,4 +3,4 @@ from app.database import init_db
 
 if __name__ == "__main__":
     init_db()
-    print("Database initialized with no demo data.")
+    print("Database initialized with the built-in Business Signal demo dataset.")
