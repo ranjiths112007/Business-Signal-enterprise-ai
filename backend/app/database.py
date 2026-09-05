@@ -1,4 +1,5 @@
 import os
+import random
 from contextlib import contextmanager
 from typing import Iterator
 
@@ -6,11 +7,72 @@ import psycopg
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://business_signal:business_signal@localhost:5432/business_signal")
 
-
 @contextmanager
 def get_connection() -> Iterator[psycopg.Connection]:
     with psycopg.connect(DATABASE_URL) as conn:
         yield conn
+
+
+def _seed_demo(conn) -> None:
+    random.seed(42)
+    industries = ["SaaS", "Retail", "Healthcare", "Finance", "Logistics", "Manufacturing", "Energy", "Media", "Hospitality", "Education"]
+    prefixes = ["North", "Bright", "Cedar", "Vertex", "Atlas", "Harbor", "Futura", "Summit", "Blue", "Prime", "Oak", "Silver", "Red", "Green", "Metro", "Apex", "Nova", "Peak", "River", "Cloud"]
+    nouns = ["Labs", "Foods", "Health", "Mobility", "Manufacturing", "Energy", "Media", "Hotels", "Systems", "Works", "Group", "Partners", "Commerce", "Logistics", "Solutions", "Analytics", "Networks", "Industries", "Services", "Holdings"]
+    customers = []
+    for i in range(1, 61):
+        name = f"{prefixes[(i - 1) % len(prefixes)]} {nouns[(i * 3 - 1) % len(nouns)]} {i:02d}"
+        industry = industries[(i - 1) % len(industries)]
+        annual_value = round(random.randint(90, 480) / 10) * 10000
+        customers.append((name, industry, annual_value))
+    conn.cursor().executemany(
+        "INSERT INTO customers(name, industry, annual_value) VALUES (%s,%s,%s)", customers
+    )
+
+    decliners = {7, 18, 29, 41, 52}
+    sales = []
+    for customer_id in range(1, 61):
+        annual_value = customers[customer_id - 1][2]
+        monthly_base = annual_value / 12 * random.uniform(0.75, 1.15)
+        for month in range(1, 9):
+            if customer_id in decliners:
+                factor = [1.15, 1.12, 1.05, 0.95, 0.80, 0.65, 0.52, 0.40][month - 1]
+            elif customer_id % 11 == 0:
+                factor = [0.85, 0.90, 0.92, 1.00, 1.08, 1.16, 1.20, 1.25][month - 1]
+            else:
+                factor = random.uniform(0.85, 1.15)
+            amount = max(3500, monthly_base * factor * random.uniform(0.88, 1.12))
+            day = random.randint(3, 27)
+            sales.append((customer_id, round(amount, 2), f"2026-{month:02d}-{day:02d}"))
+    conn.cursor().executemany(
+        "INSERT INTO sales(customer_id, amount, sale_date) VALUES (%s,%s,%s)", sales
+    )
+
+    priorities = ["low", "medium", "high"]
+    statuses = ["open", "pending", "closed"]
+    subjects = [
+        "Invoice question", "Integration setup", "Account reporting request", "Delivery update",
+        "API configuration", "Service outage", "Billing clarification", "User access request",
+        "Renewal concern", "Performance issue", "Data export request", "Contract question",
+        "Feature request", "Login issue", "Dashboard issue", "Security review",
+    ]
+    tickets = []
+    for customer_id in range(1, 61):
+        count = random.randint(3, 10) + (4 if customer_id in decliners else 0)
+        for _ in range(count):
+            if customer_id in decliners:
+                priority = random.choices(priorities, [0.15, 0.35, 0.50])[0]
+                status = random.choices(statuses, [0.50, 0.25, 0.25])[0]
+            else:
+                priority = random.choices(priorities, [0.50, 0.40, 0.10])[0]
+                status = random.choices(statuses, [0.18, 0.14, 0.68])[0]
+            month = random.randint(1, 8)
+            day = random.randint(1, 28)
+            tickets.append((customer_id, priority, status, random.choice(subjects), f"2026-{month:02d}-{day:02d}"))
+    conn.cursor().executemany(
+        "INSERT INTO support_tickets(customer_id, priority, status, subject, created_at) VALUES (%s,%s,%s,%s,%s)",
+        tickets,
+    )
+    conn.commit()
 
 
 def init_db() -> None:
@@ -24,52 +86,4 @@ def init_db() -> None:
         demo_enabled = os.getenv("DEMO_DATA", "true").lower() == "true"
         customer_count = conn.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
         if demo_enabled and customer_count == 0:
-            cursor = conn.cursor()
-            cursor.executemany(
-                "INSERT INTO customers(name, industry, annual_value) VALUES (%s,%s,%s)",
-                [
-                    ("Northstar Foods", "Retail", 180000),
-                    ("Vertex Mobility", "Logistics", 260000),
-                    ("Cedar Health", "Healthcare", 220000),
-                    ("Brightline Labs", "SaaS", 310000),
-                    ("Harbor Hotels", "Hospitality", 145000),
-                    ("Atlas Manufacturing", "Manufacturing", 275000),
-                    ("Futura Energy", "Energy", 340000),
-                    ("BluePeak Media", "Media", 120000),
-                ],
-            )
-            cursor.executemany(
-                "INSERT INTO sales(customer_id, amount, sale_date) VALUES (%s,%s,%s)",
-                [
-                    (1, 42000, "2026-04-12"), (1, 38000, "2026-05-18"), (1, 45000, "2026-06-21"), (1, 41000, "2026-08-14"),
-                    (2, 62000, "2026-04-08"), (2, 58000, "2026-05-16"), (2, 64000, "2026-06-19"), (2, 61000, "2026-08-09"),
-                    (3, 42000, "2026-04-20"), (3, 39000, "2026-05-22"), (3, 22000, "2026-07-18"), (3, 12000, "2026-08-24"),
-                    (4, 72000, "2026-04-05"), (4, 76000, "2026-05-14"), (4, 81000, "2026-06-16"), (4, 79000, "2026-08-12"),
-                    (5, 33000, "2026-04-16"), (5, 31000, "2026-05-17"), (5, 35000, "2026-06-20"), (5, 34000, "2026-08-15"),
-                    (6, 68000, "2026-04-11"), (6, 65000, "2026-05-20"), (6, 71000, "2026-06-24"), (6, 69000, "2026-08-11"),
-                    (7, 54000, "2026-04-07"), (7, 49000, "2026-05-13"), (7, 21000, "2026-07-16"), (7, 9000, "2026-08-26"),
-                    (8, 28000, "2026-04-19"), (8, 26000, "2026-05-21"), (8, 29000, "2026-06-23"), (8, 27000, "2026-08-17"),
-                ],
-            )
-            cursor.executemany(
-                "INSERT INTO support_tickets(customer_id, priority, status, subject, created_at) VALUES (%s,%s,%s,%s,%s)",
-                [
-                    (1, "low", "closed", "Invoice question", "2026-07-03"),
-                    (1, "medium", "closed", "Account reporting request", "2026-08-02"),
-                    (2, "low", "closed", "Delivery update", "2026-07-11"),
-                    (2, "medium", "open", "Integration setup", "2026-08-20"),
-                    (3, "high", "open", "Repeated service outage", "2026-08-08"),
-                    (3, "high", "open", "Escalated support case", "2026-08-22"),
-                    (3, "medium", "pending", "Slow response time", "2026-08-28"),
-                    (4, "low", "closed", "Billing clarification", "2026-07-15"),
-                    (4, "low", "closed", "User access request", "2026-08-05"),
-                    (5, "low", "closed", "Monthly report request", "2026-08-03"),
-                    (6, "medium", "closed", "API configuration", "2026-07-21"),
-                    (6, "low", "open", "Minor dashboard issue", "2026-08-30"),
-                    (7, "high", "open", "Contract escalation", "2026-08-10"),
-                    (7, "high", "open", "Service quality issue", "2026-08-25"),
-                    (7, "medium", "pending", "Renewal concern", "2026-08-29"),
-                    (8, "low", "closed", "Password reset", "2026-08-04"),
-                ],
-            )
-            conn.commit()
+            _seed_demo(conn)
