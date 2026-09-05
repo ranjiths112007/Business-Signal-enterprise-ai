@@ -1,0 +1,17 @@
+customer_id,priority,status,subject,created_at
+1,low,closed,Invoice question,2026-07-03
+1,medium,closed,Account reporting request,2026-08-02
+2,low,closed,Delivery update,2026-07-11
+2,medium,open,Integration setup,2026-08-20
+3,high,open,Repeated service outage,2026-08-08
+3,high,open,Escalated support case,2026-08-22
+3,medium,pending,Slow response time,2026-08-28
+4,low,closed,Billing clarification,2026-07-15
+4,low,closed,User access request,2026-08-05
+5,low,closed,Monthly report request,2026-08-03
+6,medium,closed,API configuration,2026-07-21
+6,low,open,Minor dashboard issue,2026-08-30
+7,high,open,Contract escalation,2026-08-10
+7,high,open,Service quality issue,2026-08-25
+7,medium,pending,Renewal concern,2026-08-29
+8,low,closed,Password reset,2026-08-04
