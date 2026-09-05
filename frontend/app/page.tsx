@@ -6,42 +6,252 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const BRAND = "/Business%20Signal%20Neon%20Analytics%20Branding.png";
 const EMBLEM = "/Neon%20Business%20Signal%20Emblem.png";
 
-type Customer = { customer_id:number; customer:string; revenue:number; industry:string };
-type Summary = { customers?:number; total_revenue?:number; open_tickets?:number };
-type Analysis = { dataset:string; columns:string[]; mapping:Record<string,string|null>; requirements:string[]; missing:string[]; ready:boolean; message:string };
+const SAMPLE_BASE = "https://github.com/ranjiths112007/Business-Signal-enterprise-ai/blob/main/data/sample";
 
-const FIELD_LABELS:Record<string,string> = { name:"Customer / company name", industry:"Industry / sector", annual_value:"Annual value", customer_id:"Customer reference", amount:"Sale amount", sale_date:"Sale date", priority:"Priority", status:"Status", subject:"Issue / subject", created_at:"Created date" };
-const DATASETS:[string,string][] = [["customers","Customers"],["sales","Sales / transactions"],["support_tickets","Support tickets"]];
+type Customer = { customer_id: number; customer: string; revenue: number; industry: string };
+type Summary = { customers?: number; total_revenue?: number; open_tickets?: number };
+type Analysis = {
+  dataset: string;
+  columns: string[];
+  mapping: Record<string, string | null>;
+  requirements: string[];
+  missing: string[];
+  ready: boolean;
+  message: string;
+};
 
-function Icon({name}:{name:string}){const p:Record<string,React.ReactNode>={grid:<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,users:<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,chart:<><path d="M3 3v18h18"/><path d="m7 16 4-5 3 3 6-8"/></>,shield:<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></>,spark:<><path d="m12 3-1.8 5.2L5 10l5.2 1.8L12 17l1.8-5.2L19 10l-5.2-1.8L12 3Z"/></>,database:<><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></>,upload:<><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></>,arrow:<><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></>,check:<path d="m5 12 4 4L19 6"/>};return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{p[name]}</svg>}
+const LABELS: Record<string, string> = {
+  name: "Customer / company",
+  industry: "Industry / sector",
+  annual_value: "Annual value",
+  customer_id: "Customer reference",
+  amount: "Sale amount",
+  sale_date: "Sale date",
+  priority: "Priority",
+  status: "Status",
+  subject: "Issue / subject",
+  created_at: "Created date",
+};
 
-export default function Home(){
-  const [customers,setCustomers]=useState<Customer[]>([]),[summary,setSummary]=useState<Summary>({}),[q,setQ]=useState(""),[answer,setAnswer]=useState(""),[evidence,setEvidence]=useState<any>(null);
-  const [loading,setLoading]=useState(false),[error,setError]=useState(""),[file,setFile]=useState<File|null>(null),[dataset,setDataset]=useState("customers"),[replace,setReplace]=useState(false),[uploading,setUploading]=useState(false),[uploadMessage,setUploadMessage]=useState(""),[showAll,setShowAll]=useState(false),[dragging,setDragging]=useState(false);
-  const [analysis,setAnalysis]=useState<Analysis|null>(null),[mapping,setMapping]=useState<Record<string,string|null>>({}); const inputRef=useRef<HTMLInputElement>(null);
+const DATASETS = [
+  ["customers", "Customers"],
+  ["sales", "Sales"],
+  ["support_tickets", "Support"],
+] as const;
 
-  async function refresh(){try{const [a,b]=await Promise.all([fetch(`${API}/api/v1/business/top-customers`),fetch(`${API}/api/v1/business/summary`)]);if(!a.ok||!b.ok)throw Error();const top=await a.json(),stats=await b.json();setCustomers(top.customers||[]);setSummary(stats||{});setError("")}catch{setError("Backend API is not reachable. Start the backend on port 8000.")}}
-  useEffect(()=>{refresh()},[]); function go(id:string){document.getElementById(id)?.scrollIntoView({behavior:"smooth",block:"start"})}
-  async function ask(){if(!q.trim()||loading)return;setLoading(true);setError("");try{const r=await fetch(`${API}/api/v1/business/ask`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question:q})});const x=await r.json();if(!r.ok)throw Error(x.detail||"Request failed");setAnswer(x.answer||"No decision returned.");setEvidence(x.evidence||null)}catch(e:any){setError(e.message||"Request failed")}finally{setLoading(false)}}
-  function choose(f:File|null){if(!f)return;setError("");if(!f.name.toLowerCase().endsWith(".csv")){setError("Please choose a CSV file.");return}setFile(f);setAnalysis(null);setMapping({});}
-  function drop(e:DragEvent<HTMLDivElement>){e.preventDefault();setDragging(false);choose(e.dataTransfer.files?.[0]||null)}
-  async function analyze(){if(!file||uploading)return;setUploading(true);setError("");try{const form=new FormData();form.append("file",file);const r=await fetch(`${API}/api/v1/data/analyze?dataset=${dataset}`,{method:"POST",body:form});const x=await r.json();if(!r.ok)throw Error(x.detail||"Could not inspect file");setAnalysis(x);setMapping(x.mapping||{});}catch(e:any){setError(e.message||"Could not inspect file")}finally{setUploading(false)}}
-  async function upload(){if(!file||uploading||!analysis?.ready)return;setUploading(true);setError("");setUploadMessage("");try{const form=new FormData();form.append("file",file);form.append("mapping",JSON.stringify(mapping));const r=await fetch(`${API}/api/v1/data/upload?dataset=${dataset}&replace=${replace}`,{method:"POST",body:form});const x=await r.json();if(!r.ok)throw Error(x.detail||"Upload failed");setUploadMessage(`${x.rows_imported} rows imported. Your dashboard is now using this data.`);setFile(null);setAnalysis(null);setMapping({});if(inputRef.current)inputRef.current.value="";await refresh()}catch(e:any){setError(e.message||"Upload failed")}finally{setUploading(false)}}
-  function downloadTemplate(){const headers=dataset==="customers"?"name,industry,annual_value":dataset==="sales"?"customer_id,amount,sale_date":"customer_id,priority,status,subject,created_at";const blob=new Blob([`${headers}\n`],{type:"text/csv"});const url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`business-signal-${dataset}-template.csv`;a.click();URL.revokeObjectURL(url)}
-  const total=Number(summary.total_revenue||0),count=Number(summary.customers??customers.length),tickets=Number(summary.open_tickets||0),visible=showAll?customers:customers.slice(0,6);
-  return <div className="shell"><aside className="sidebar"><div className="logoLockup"><img src={EMBLEM} className="emblem" alt="Business Signal"/><div><div className="logoName">Business Signal</div><div className="logoSub">DECISION INTELLIGENCE</div></div></div><div className="navLabel">WORKSPACE</div><nav>{[["Overview","overview","grid"],["Customers","customers","users"],["Revenue","metrics","chart"],["Risk & Signals","risk","shield"]].map(([l,id,i])=><button className="navItem" key={l} onClick={()=>go(id)}><Icon name={i}/><span>{l}</span></button>)}</nav><div className="navLabel second">INTELLIGENCE</div><nav><button className="navItem" onClick={()=>go("ask-ai")}><Icon name="spark"/><span>Ask AI</span></button><button className="navItem" onClick={()=>go("evidence")}><Icon name="database"/><span>Evidence</span></button></nav><div className="sideBottom"><div className="system"><span className="liveDot"/>API connected</div><div className="sideBrand"><img src={EMBLEM} alt=""/><span>Business Signal AI</span></div></div></aside>
-    <main className="content"><header className="topbar"><div><div className="eyebrow">ENTERPRISE CONTROL CENTER</div><h1>Business intelligence</h1></div><div className="topActions"><div className="apiStatus"><span className="liveDot"/>Live API</div><div className="avatar">BS</div></div></header>
-      <section id="overview" className="hero"><div className="heroCopy"><div className="pill">✦ AI-powered decision intelligence</div><h2>Your data.<br/><span>Your decisions.</span></h2><p>Connect real business data, map it once, and turn it into evidence-backed answers. Your column names do not have to match ours.</p><div className="heroButtons"><button className="primary" onClick={()=>go("import")}>Connect data <Icon name="arrow"/></button><button className="ghost" onClick={()=>go("ask-ai")}>Ask Business Signal</button></div></div><div className="heroArt"><img src={BRAND} alt="Business Signal"/></div></section>
-      <section id="metrics" className="metrics"><div className="metricCard"><div className="metricIcon cyan"><Icon name="users"/></div><div><span>Customers</span><strong>{count.toLocaleString()}</strong><small>{count?"Connected records":"Waiting for data"}</small></div></div><div className="metricCard"><div className="metricIcon purple"><Icon name="chart"/></div><div><span>Revenue</span><strong>₹{total.toLocaleString(undefined,{maximumFractionDigits:0})}</strong><small>{total?"Recorded sales":"No sales imported"}</small></div></div><div className="metricCard"><div className="metricIcon green"><Icon name="shield"/></div><div><span>Open tickets</span><strong>{tickets.toLocaleString()}</strong><small>{tickets?"Current support backlog":"No support data"}</small></div></div><div className="metricCard"><div className="metricIcon blue"><Icon name="database"/></div><div><span>Data status</span><strong>{count||total||tickets?"LIVE":"EMPTY"}</strong><small>{count||total||tickets?"Reading your database":"Import business data"}</small></div></div></section>
-      <section id="ask-ai" className="aiPanel"><div className="panelHeader"><div><div className="sectionKicker"><Icon name="spark"/> BUSINESS COPILOT</div><h3>Ask Business Signal</h3><p>Ask about customers, revenue, support, risk, or indexed documents.</p></div><div className="engineBadge">RAG + SQL</div></div><div className="queryBox"><div className="queryIcon"><Icon name="spark"/></div><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==="Enter"&&ask()} placeholder="e.g. Which customers are at risk and why?"/><button onClick={ask} disabled={loading}>{loading?"Analyzing…":"Run analysis"}<Icon name="arrow"/></button></div><div className="suggestions">{["Which customers are at risk and why?","Which customers generated the most revenue?","Summarize current support load"].map(x=><button key={x} onClick={()=>setQ(x)}>{x}</button>)}</div>{answer&&<div className="answerBox"><div className="answerHead"><span><span className="liveDot"/>Decision returned</span><span>Evidence {evidence?"available":"not attached"}</span></div><div className="answerText">{answer}</div></div>}</section>
-      <section id="import" className="panel importPanel"><div className="panelHeader compact"><div><div className="sectionKicker"><Icon name="upload"/> DATA ONBOARDING</div><h3>Bring your business data</h3><p>Upload almost any business CSV. Business Signal detects common field names and lets you review the mapping before anything is imported.</p></div><button className="templateButton" onClick={downloadTemplate}>Download template</button></div>
-        <div className="datasetTabs">{DATASETS.map(([v,l])=><button key={v} className={dataset===v?"selected":""} onClick={()=>{setDataset(v);setAnalysis(null);setMapping({})}}>{l}</button>)}</div>
-        <div className={`dropzone ${file?"selected":""} ${dragging?"dragging":""}`} onDragEnter={e=>{e.preventDefault();setDragging(true)}} onDragOver={e=>e.preventDefault()} onDragLeave={()=>setDragging(false)} onDrop={drop} onClick={()=>inputRef.current?.click()}><input ref={inputRef} type="file" accept=".csv,text/csv" onChange={e=>choose(e.target.files?.[0]||null)}/><div className="dropIcon"><Icon name="upload"/></div><strong>{file?file.name:"Drop your CSV here"}</strong><span>{file?`${(file.size/1024).toFixed(1)} KB · ready for inspection`:"or click to browse · CSV only"}</span></div>
-        {file&&!analysis&&<button className="inspectButton" onClick={e=>{e.stopPropagation();analyze()}} disabled={uploading}>Inspect & map columns <Icon name="arrow"/></button>}
-        {analysis&&<div className="mappingCard"><div className="mappingIntro"><div><strong>We found {analysis.columns.length} columns</strong><p>{analysis.message}</p></div><span className={analysis.ready?"readyBadge":"reviewBadge"}>{analysis.ready?"READY TO IMPORT":"NEEDS MAPPING"}</span></div><div className="mappingGrid">{analysis.requirements.map(field=><label key={field}><span>{FIELD_LABELS[field]||field}</span><select value={mapping[field]||""} onChange={e=>setMapping(m=>({...m,[field]:e.target.value||null}))}><option value="">Select column…</option>{analysis.columns.map(col=><option value={col} key={col}>{col}</option>)}</select></label>)}</div><div className="mappingFooter"><span>{analysis.ready?<><Icon name="check"/> All required fields mapped</>:"Map the missing fields to continue."}</span><div><label className="replaceToggle"><input type="checkbox" checked={replace} onChange={e=>setReplace(e.target.checked)}/> Replace this dataset</label><button className="smallButton" onClick={upload} disabled={!analysis.ready||uploading}>{uploading?"Importing…":"Import mapped data"}<Icon name="arrow"/></button></div></div></div>}
-        <div className="dataGuide"><strong>What Business Signal needs</strong><span>Customers → name, industry, annual value</span><span>Sales → customer reference, amount, date</span><span>Support → customer reference, priority, status, issue, created date</span><em>Names can be different. The mapping step handles that.</em></div>{uploadMessage&&<div className="successBox">{uploadMessage}</div>}{error&&<div className="errorBox">{error}</div>}</section>
-      <section id="customers" className="panel customerPanel"><div className="panelHeader compact"><div><div className="sectionKicker"><Icon name="users"/> CUSTOMER INTELLIGENCE</div><h3>{count?"Customers":"Your customers"}</h3><p>{count?`${count.toLocaleString()} records in the connected database.`:"No customer records yet. Import a customers CSV to populate this table."}</p></div>{customers.length>6&&<button className="smallButton" onClick={()=>setShowAll(v=>!v)}>{showAll?"Show less":"View all"}<Icon name="arrow"/></button>}</div>{customers.length>0&&<div className="tableHead"><span>Customer</span><span>Industry</span><span>Revenue</span><span>ID</span></div>}{visible.map(c=><div className="customerRow" key={c.customer_id}><div className="customerName"><div className="customerAvatar">{c.customer?.slice(0,1).toUpperCase()||"•"}</div><div><strong>{c.customer}</strong><small>Customer #{c.customer_id}</small></div></div><span>{c.industry||"—"}</span><strong>₹{Number(c.revenue||0).toLocaleString()}</strong><span className="idTag">#{c.customer_id}</span></div>)}{!customers.length&&<div className="empty">Waiting for your data.</div>}</section>
-      <section id="risk" className="twoCol"><div className="panel signalPanel"><div className="sectionKicker"><Icon name="shield"/> RISK & SIGNALS</div><h3>Evidence-based signals</h3><p className="panelDesc">Risk is derived from revenue movement and support activity in the connected database. Nothing here is a fixed health score.</p><div className="signalRows"><div><span>Customer risk engine</span><strong>AVAILABLE</strong></div><div><span>Revenue comparison</span><strong>90 / 180 days</strong></div><div><span>Support pressure</span><strong>{tickets.toLocaleString()} open tickets</strong></div></div></div><div className="panel dataState"><div className="sectionKicker"><Icon name="database"/> DATA COVERAGE</div><h3>{count?"Live dataset":"No dataset"}</h3><div className="coverage"><strong>{count.toLocaleString()}</strong><span>customer records</span></div><p>{count?"Dashboard values are read from the backend database.":"Import your CSV to replace this empty state with real business data."}</p></div></section>
-      <section id="evidence" className="panel evidencePanel"><div className="panelHeader compact"><div><div className="sectionKicker"><Icon name="database"/> TRUST LAYER</div><h3>Evidence</h3><p>Responses can expose the backend evidence used for the decision.</p></div></div>{evidence?<pre className="evidenceCode">{JSON.stringify(evidence,null,2)}</pre>:<div className="evidenceEmpty"><div className="evidenceIcon"><Icon name="database"/></div><div><strong>No evidence attached yet</strong><p>Run an AI question to see the returned evidence.</p></div></div>}</section>
-      <footer><div><strong>Business Signal</strong>Decision intelligence for real business data.</div><span>FastAPI · PostgreSQL · RAG · SQL</span></footer></main></div>
+function Icon({ name }: { name: string }) {
+  const paths: Record<string, React.ReactNode> = {
+    spark: <path d="m12 3-1.7 5.3L5 10l5.3 1.7L12 17l1.7-5.3L19 10l-5.3-1.7L12 3Z" />,
+    upload: <><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></>,
+    arrow: <><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></>,
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+    database: <><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></>,
+    check: <path d="m5 12 4 4L19 6"/>,
+  };
+  return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+}
+
+export default function Home() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [summary, setSummary] = useState<Summary>({});
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [evidence, setEvidence] = useState<any>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [dataset, setDataset] = useState<(typeof DATASETS)[number][0]>("customers");
+  const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [mapping, setMapping] = useState<Record<string, string | null>>({});
+  const [replace, setReplace] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [message, setMessage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function refresh() {
+    try {
+      const [customersRes, summaryRes] = await Promise.all([
+        fetch(`${API}/api/v1/business/top-customers?limit=50`),
+        fetch(`${API}/api/v1/business/summary`),
+      ]);
+      if (!customersRes.ok || !summaryRes.ok) throw new Error();
+      const [top, stats] = await Promise.all([customersRes.json(), summaryRes.json()]);
+      setCustomers(top.customers || []);
+      setSummary(stats || {});
+      setError("");
+    } catch {
+      setError("Backend is not running. Start the API on port 8000.");
+    }
+  }
+
+  useEffect(() => { refresh(); }, []);
+
+  async function ask() {
+    if (!question.trim() || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/api/v1/business/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Question failed");
+      setAnswer(data.answer || "No answer returned.");
+      setEvidence(data.evidence || null);
+    } catch (e: any) {
+      setError(e.message || "Question failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function choose(next: File | null) {
+    if (!next) return;
+    setError("");
+    setMessage("");
+    if (!next.name.toLowerCase().endsWith(".csv")) {
+      setError("Please choose a CSV file.");
+      return;
+    }
+    setFile(next);
+    setAnalysis(null);
+    setMapping({});
+  }
+
+  function drop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragging(false);
+    choose(event.dataTransfer.files?.[0] || null);
+  }
+
+  async function inspect() {
+    if (!file || importing) return;
+    setImporting(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API}/api/v1/data/analyze?dataset=${dataset}`, { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Could not inspect the file");
+      setAnalysis(data);
+      setMapping(data.mapping || {});
+    } catch (e: any) {
+      setError(e.message || "Could not inspect the file");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function importData() {
+    if (!file || !analysis?.ready || importing) return;
+    setImporting(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("mapping", JSON.stringify(mapping));
+      const res = await fetch(`${API}/api/v1/data/upload?dataset=${dataset}&replace=${replace}`, { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Import failed");
+      setMessage(`${data.rows_imported} rows imported. Business Signal is now using the data.`);
+      setFile(null);
+      setAnalysis(null);
+      setMapping({});
+      if (inputRef.current) inputRef.current.value = "";
+      await refresh();
+    } catch (e: any) {
+      setError(e.message || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  const count = Number(summary.customers ?? customers.length);
+  const revenue = Number(summary.total_revenue ?? 0);
+  const tickets = Number(summary.open_tickets ?? 0);
+  const visibleCustomers = showAll ? customers : customers.slice(0, 6);
+
+  return (
+    <main className="page">
+      <header className="header">
+        <a className="brand" href="#top" aria-label="Business Signal home">
+          <img src={EMBLEM} alt="" />
+          <span>Business Signal</span>
+        </a>
+        <nav>
+          <a href="#demo">Demo</a>
+          <a href="#data">Data</a>
+          <a href="#results">Results</a>
+        </nav>
+        <span className="projectTag">AI ENGINEERING PROJECT</span>
+      </header>
+
+      <section id="top" className="hero">
+        <div className="heroCopy">
+          <div className="eyebrow">BUSINESS SIGNAL</div>
+          <h1>Ask a business question.<br /><em>Find the signal.</em></h1>
+          <p>Business Signal combines structured data, documents, SQL and AI to produce answers you can trace back to evidence.</p>
+          <div className="heroActions">
+            <button className="primary" onClick={() => document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" })}>Try the demo <Icon name="arrow" /></button>
+            <a className="textButton" href="https://github.com/ranjiths112007/Business-Signal-enterprise-ai" target="_blank" rel="noreferrer">View source ↗</a>
+          </div>
+        </div>
+        <img className="brandArt" src={BRAND} alt="Business Signal" />
+      </section>
+
+      <section className="techStrip" aria-label="Project stack">
+        <span>FastAPI</span><span>PostgreSQL</span><span>SQL agent</span><span>RAG</span><span>Gemini</span><span>Evidence-first answers</span>
+      </section>
+
+      <section id="demo" className="workspace">
+        <div className="sectionTitle"><span className="number">01</span><div><h2>Ask Business Signal</h2><p>Try a question against the connected business data.</p></div></div>
+        <div className="askCard">
+          <div className="askHeader"><Icon name="spark" /><span>Natural-language business analysis</span></div>
+          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") ask(); }} placeholder="Which customers are at risk and why?" />
+          <div className="askFooter"><div className="examples">{["Which customers are at risk and why?", "Who generated the most revenue?", "What is the current support load?"].map((item) => <button key={item} onClick={() => setQuestion(item)}>{item}</button>)}</div><button className="primary compact" onClick={ask} disabled={loading}>{loading ? "Analyzing…" : "Run question"}<Icon name="arrow" /></button></div>
+          {answer && <div className="answer"><div><span className="answerLabel">ANSWER</span><span className="evidenceState">{evidence ? "Evidence attached" : "No evidence"}</span></div><p>{answer}</p></div>}
+        </div>
+      </section>
+
+      <section id="data" className="workspace">
+        <div className="sectionTitle"><span className="number">02</span><div><h2>Bring in data</h2><p>Use the demo files or inspect your own CSV. Column names can differ.</p></div></div>
+        <div className="dataCard">
+          <div className="dataTop"><div className="tabs">{DATASETS.map(([value, label]) => <button key={value} className={dataset === value ? "active" : ""} onClick={() => { setDataset(value); setFile(null); setAnalysis(null); setMapping({}); }}>{label}</button>)}</div><a className="sampleLink" href={`${SAMPLE_BASE}/${dataset}.csv`} target="_blank" rel="noreferrer">Open demo CSV ↗</a></div>
+          <div className={`dropzone ${dragging ? "dragging" : ""} ${file ? "selected" : ""}`} onDragEnter={(e) => { e.preventDefault(); setDragging(true); }} onDragOver={(e) => e.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={drop} onClick={() => inputRef.current?.click()}>
+            <input ref={inputRef} type="file" accept=".csv,text/csv" onChange={(e) => choose(e.target.files?.[0] || null)} />
+            <div className="uploadMark"><Icon name="upload" /></div>
+            <strong>{file ? file.name : "Drop a CSV here"}</strong>
+            <span>{file ? `${(file.size / 1024).toFixed(1)} KB · ready to inspect` : "or click to browse"}</span>
+          </div>
+          {file && !analysis && <button className="primary inspect" onClick={(e) => { e.stopPropagation(); inspect(); }} disabled={importing}>{importing ? "Inspecting…" : "Inspect columns"}<Icon name="arrow" /></button>}
+          {analysis && <div className="mapping">
+            <div className="mappingHeader"><div><strong>Column mapping</strong><p>{analysis.message}</p></div><span className={analysis.ready ? "ready" : "review"}>{analysis.ready ? "READY" : "REVIEW"}</span></div>
+            <div className="mappingGrid">{analysis.requirements.map((field) => <label key={field}><span>{LABELS[field] || field}</span><select value={mapping[field] || ""} onChange={(e) => setMapping((m) => ({ ...m, [field]: e.target.value || null }))}><option value="">Choose column</option>{analysis.columns.map((column) => <option value={column} key={column}>{column}</option>)}</select></label>)}</div>
+            <div className="mappingFooter"><span>{analysis.ready ? <><Icon name="check" /> All required fields mapped</> : "Map the missing fields to continue."}</span><div><label className="replace"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Replace dataset</label><button className="primary compact" onClick={importData} disabled={!analysis.ready || importing}>{importing ? "Importing…" : "Import data"}<Icon name="arrow" /></button></div></div>
+          </div>}
+          <div className="dataNote"><strong>What the demo expects</strong><span>Customers: company, industry, annual value</span><span>Sales: customer reference, amount, date</span><span>Support: customer reference, priority, status, issue, date</span><small>The importer maps common column-name variations for you.</small></div>
+          {message && <div className="success">{message}</div>}
+          {error && <div className="error">{error}</div>}
+        </div>
+      </section>
+
+      <section id="results" className="workspace">
+        <div className="sectionTitle"><span className="number">03</span><div><h2>What the data says</h2><p>Only values read from the backend are shown here.</p></div></div>
+        <div className="stats"><div><span>Customers</span><strong>{count.toLocaleString()}</strong></div><div><span>Recorded revenue</span><strong>₹{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong></div><div><span>Open tickets</span><strong>{tickets.toLocaleString()}</strong></div></div>
+        <div className="resultsGrid">
+          <div className="resultCard"><div className="resultHeader"><div><span className="resultKicker"><Icon name="users" /> CUSTOMER DATA</span><h3>{count ? "Customers" : "No customer data yet"}</h3></div>{customers.length > 6 && <button className="textButton" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "View all"}</button>}</div>
+            {customers.length ? visibleCustomers.map((customer) => <div className="customer" key={customer.customer_id}><div className="avatar">{customer.customer.slice(0, 1).toUpperCase()}</div><div><strong>{customer.customer}</strong><small>{customer.industry || "No industry"}</small></div><b>₹{Number(customer.revenue || 0).toLocaleString()}</b></div>) : <div className="empty">Import the demo customer CSV to populate this section.</div>}
+          </div>
+          <div className="resultCard"><div className="resultHeader"><div><span className="resultKicker"><Icon name="database" /> EVIDENCE</span><h3>{evidence ? "Trace from the answer" : "Ready for evidence"}</h3></div></div>{evidence ? <pre>{JSON.stringify(evidence, null, 2)}</pre> : <div className="evidenceEmpty"><p>Ask a question to see the structured evidence used by Business Signal.</p></div>}</div>
+        </div>
+      </section>
+
+      <footer><div><img src={EMBLEM} alt="" /><span>Business Signal</span></div><small>AI engineering project · SQL + RAG + evidence</small></footer>
+    </main>
+  );
 }
