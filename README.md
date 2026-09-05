@@ -22,7 +22,12 @@ This is a **project showcase**, not a production SaaS product.
 
 ## Demo
 
-The project includes a small, consistent demo dataset, so the dashboard has data immediately after the database is initialized.
+The database creates a deterministic demo business dataset automatically when empty:
+
+- **60 customers** across 10 industries
+- **480 sales records** across Jan–Aug 2026
+- **448 support tickets** with realistic priority/status patterns
+- several deliberately declining accounts for risk analysis
 
 Try:
 
@@ -30,17 +35,18 @@ Try:
 Which customers are at risk and why?
 Which customers generated the most revenue?
 What is the current support load?
+What industry has the most revenue?
+What is the average customer value?
+Show the latest sales trend.
 ```
 
-The demo files are also available in `data/sample/`:
+The small CSV examples are also available in `data/sample/` for demonstrating the import/mapping flow:
 
 ```text
 data/sample/customers.csv
 data/sample/sales.csv
 data/sample/support_tickets.csv
 ```
-
-The sales and support files use customer names to keep the example easy to read. The importer can also map common column-name variations from other CSV exports.
 
 ## Bring your own CSV
 
@@ -83,6 +89,15 @@ npm run dev
 Open `http://localhost:3000`.
 
 Set `LLM_API_KEY` in `.env` to enable Gemini-backed answers.
+
+## Reset the demo database
+
+To load the richer demo dataset from scratch:
+
+```bash
+docker compose down -v
+docker compose up --build
+```
 
 ## Interview story
 
