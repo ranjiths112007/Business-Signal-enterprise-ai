@@ -5,7 +5,7 @@ import { DragEvent, useEffect, useRef, useState } from "react";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const BRAND = "/Business%20Signal%20Neon%20Analytics%20Branding.png";
 const EMBLEM = "/Neon%20Business%20Signal%20Emblem.png";
-const SAMPLE_BASE = "https://github.com/ranjiths112007/Business-Signal-enterprise-ai/blob/main/data/sample";
+const SAMPLE_BASE = "https://raw.githubusercontent.com/ranjiths112007/Business-Signal-enterprise-ai/main/data/sample";
 
 type Customer = { customer_id: number; customer: string; revenue: number; industry: string };
 type Summary = { customers?: number; total_revenue?: number; open_tickets?: number; high_priority_tickets?: number };
@@ -70,6 +70,7 @@ export default function Home() {
   const [showQuestions, setShowQuestions] = useState(false);
   const [message, setMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const answerRef = useRef<HTMLDivElement>(null);
 
   async function refresh() {
     try {
@@ -99,6 +100,8 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Question failed");
       setAnswer(data.answer || "No answer returned."); setEvidence(data.evidence || null);
+      // Scroll to the answer after a short tick so React has rendered it
+      setTimeout(() => answerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch (e: any) { setError(e.message || "Question failed"); }
     finally { setLoading(false); }
   }
@@ -147,7 +150,7 @@ export default function Home() {
   const highPriority = Number(summary.high_priority_tickets ?? 0);
   const visibleCustomers = showAll ? customers : customers.slice(0, 6);
 
-  function useQuestion(q: string) { setQuestion(q); setAnswer(""); document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" }); }
+  function handleQuestion(q: string) { setQuestion(q); setAnswer(""); document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" }); }
 
   return (
     <main className="page">
@@ -176,15 +179,15 @@ export default function Home() {
         <div className="sectionTitle"><span className="number">01</span><div><h2>Ask Business Signal</h2><p>Ask naturally. The supported examples below cover the demo dataset.</p></div></div>
         <div className="askCard">
           <div className="askHeader"><Icon name="spark" /><span>Natural-language business analysis</span><button className="questionToggle" onClick={() => setShowQuestions((v) => !v)}>{showQuestions ? "Hide question guide" : "See all supported questions"}<Icon name="chevron" /></button></div>
-          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") ask(); }} placeholder="Which customers are at risk and why?" />
+          <textarea value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } }} placeholder="Which customers are at risk and why?" />
           <div className="askFooter"><div className="examples">{QUESTION_GROUPS.flatMap((g) => g.questions).slice(0, 3).map((item) => <button key={item} onClick={() => setQuestion(item)}>{item}</button>)}</div><button className="primary compact" onClick={ask} disabled={loading}>{loading ? "Analyzing…" : "Run question"}<Icon name="arrow" /></button></div>
 
           {showQuestions && <div className="questionGuide">
             <div className="guideHeader"><div><strong>Question guide</strong><p>You can ask anything in these categories using the wording below as a starting point.</p></div><span>{QUESTION_GROUPS.reduce((n, g) => n + g.questions.length, 0)} examples</span></div>
-            <div className="questionGroups">{QUESTION_GROUPS.map((group) => <div className="questionGroup" key={group.title}><h3>{group.title}</h3><div>{group.questions.map((q) => <button key={q} onClick={() => useQuestion(q)}>{q}<Icon name="arrow" /></button>)}</div></div>)}</div>
+            <div className="questionGroups">{QUESTION_GROUPS.map((group) => <div className="questionGroup" key={group.title}><h3>{group.title}</h3><div>{group.questions.map((q) => <button key={q} onClick={() => handleQuestion(q)}>{q}<Icon name="arrow" /></button>)}</div></div>)}</div>
           </div>}
 
-          {answer && <div className="answer"><div><span className="answerLabel">ANSWER</span><span className="evidenceState">{evidence ? "Evidence attached" : "No evidence"}</span></div><p>{answer}</p></div>}
+          {answer && <div ref={answerRef} className="answer"><div><span className="answerLabel">ANSWER</span><span className="evidenceState">{evidence ? "Evidence attached" : "No evidence"}</span></div><p>{answer}</p></div>}
         </div>
       </section>
 

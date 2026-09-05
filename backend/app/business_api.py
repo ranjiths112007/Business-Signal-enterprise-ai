@@ -39,7 +39,7 @@ def trend() -> dict:
         rows = conn.execute("SELECT sale_date, SUM(amount) FROM sales GROUP BY sale_date ORDER BY sale_date").fetchall()
     return {
         "trend": [
-            {"date": row[0].isoformat(), "revenue": float(row[1])}
+            {"date": row[0].isoformat() if hasattr(row[0], "isoformat") else str(row[0]), "revenue": float(row[1])}
             for row in rows
         ]
     }

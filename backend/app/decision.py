@@ -38,46 +38,156 @@ def customer_decision(customer_id: int) -> dict:
     }
 
 
-def _fallback(evidence: dict[str, Any], question: str) -> str:
+def _fallback(evidence: dict[str, Any], question: str) -> str:  # noqa: C901
+    """Answer from structured evidence when no LLM key is configured."""
     business = evidence.get("business", {})
     summary = business.get("summary", {})
     risks = business.get("risk_analysis", [])
     customers = business.get("top_customers", [])
+    support = business.get("support_breakdown", [])
+    industry = business.get("industry_summary", [])
     q = question.lower()
 
-    if risks:
-        high = [x for x in risks if x.get("risk_level") == "HIGH"]
-        if high:
-            names = ", ".join(x["customer"] for x in high[:3])
-            return f"I found {len(high)} high-risk customer(s): {names}. The strongest signals are declining recent revenue and unresolved support activity."
-        return f"I checked {len(risks)} customers and found no HIGH-risk customers in the current dataset."
+    total_customers = summary.get("customers", 0)
+    total_revenue = summary.get("total_revenue", 0.0)
+    open_tickets = summary.get("open_tickets", 0)
+    high_priority = summary.get("high_priority_tickets", 0)
 
-    if any(x in q for x in ["revenue", "sales", "sale", "highest", "top", "customer"]):
-        if customers:
-            top = customers[0]
-            return f"{top['customer']} is the top customer by recorded revenue at ₹{top['revenue']:,.0f}. I found {len(customers)} ranked customer records in the current evidence."
-        return "There are no recorded customer sales in the current dataset."
+    # ── Risk questions ────────────────────────────────────────────────────────
+    if risks and any(x in q for x in ["risk", "churn", "danger", "at risk", "warning", "declining", "intervention", "warning signal"]):
+        high_risk = [x for x in risks if x.get("risk_level") == "HIGH"]
+        medium_risk = [x for x in risks if x.get("risk_level") == "MEDIUM"]
+        if any(x in q for x in ["why", "reason", "signal"]) and high_risk:
+            top = high_risk[0]
+            return (
+                f"{top['customer']} is the highest-risk customer (score {top['risk_score']}/100). "
+                f"Revenue dropped {top['revenue_drop_percent']}% vs the prior 90 days, with "
+                f"{top['open_tickets']} open support ticket(s) including {top['high_priority_tickets']} high-priority. "
+                f"Total high-risk accounts: {len(high_risk)}."
+            )
+        if high_risk:
+            names = ", ".join(x["customer"] for x in high_risk[:5])
+            parts = [f"Found {len(high_risk)} HIGH-risk customer(s): {names}."]
+            if medium_risk:
+                parts.append(f"Also {len(medium_risk)} MEDIUM-risk account(s).")
+            parts.append("Key signals: revenue decline vs prior 90 days and unresolved high-priority support tickets.")
+            return " ".join(parts)
+        return f"Checked {len(risks)} customer(s) — no HIGH-risk accounts detected in the current dataset."
 
-    if any(x in q for x in ["ticket", "support", "backlog"]):
-        open_tickets = summary.get("open_tickets", 0)
-        high_priority = summary.get("high_priority_tickets", 0)
-        return f"The current support backlog is {open_tickets} open ticket(s), including {high_priority} high-priority ticket(s)."
+    # ── Total revenue ─────────────────────────────────────────────────────────
+    if any(x in q for x in ["total revenue", "total sales", "overall revenue"]):
+        return f"Total recorded revenue across all customers is ₹{total_revenue:,.0f}."
 
-    if any(x in q for x in ["how many customer", "number of customer", "customer count", "customers"]):
-        return f"The database currently contains {summary.get('customers', 0)} customer record(s)."
-
-    if any(x in q for x in ["business health", "overall", "summary", "snapshot"]):
+    # ── Average sale amount ────────────────────────────────────────────────────
+    if any(x in q for x in ["average sale", "avg sale", "mean sale", "average amount"]):
         return (
-            f"Current snapshot: {summary.get('customers', 0)} customers, "
-            f"₹{summary.get('total_revenue', 0):,.0f} recorded revenue, and "
-            f"{summary.get('open_tickets', 0)} open support ticket(s)."
+            f"The total recorded revenue is ₹{total_revenue:,.0f} across {total_customers} customer(s). "
+            "Average sale amount is not directly stored; connect an LLM API key for a precise per-transaction average."
         )
 
+    # ── Revenue trend ─────────────────────────────────────────────────────────
+    if any(x in q for x in ["trend", "over time", "month", "period"]):
+        return (
+            f"Total revenue is ₹{total_revenue:,.0f}. "
+            "Detailed revenue trends require an LLM API key for time-series analysis. "
+            "Risk scores already reflect 90-day vs prior-90-day revenue movement per customer."
+        )
+
+    # ── Industry revenue (MUST be before generic 'top'/'most' check) ────────────
+    if any(x in q for x in ["industry", "sector", "vertical", "segment"]) and any(x in q for x in ["revenue", "most", "generated", "contribute"]):
+        if industry:
+            top = industry[0]
+            lines = [f"{i+1}. {ind['industry']} — ₹{ind['revenue']:,.0f} ({ind['customers']} customers)" for i, ind in enumerate(industry[:5])]
+            return f"Top industry by revenue: {top['industry']} at ₹{top['revenue']:,.0f}.\n\nFull breakdown:\n" + "\n".join(lines)
+        return "No industry revenue data found."
+
+    # ── Industry customer count (MUST be before generic customer check) ────────
+    if any(x in q for x in ["industry", "industries", "sector", "segment"]) and any(x in q for x in ["customer", "how many", "count", "most customer", "industries"]):
+        if industry:
+            by_count = sorted(industry, key=lambda x: x["customers"], reverse=True)
+            lines = [f"{i+1}. {ind['industry']} — {ind['customers']} customer(s)" for i, ind in enumerate(by_count[:5])]
+            return "Industries by customer count:\n" + "\n".join(lines)
+        return "No industry data found."
+
+    # ── Top customers by revenue ───────────────────────────────────────────────
+    if any(x in q for x in ["top", "highest revenue", "most revenue", "generated the most", "biggest customer", "largest"]):
+        if customers:
+            lines = [f"{i+1}. {c['customer']} ({c['industry']}) — ₹{c['revenue']:,.0f}" for i, c in enumerate(customers[:5])]
+            return f"Top customers by recorded revenue:\n" + "\n".join(lines)
+        return "No sales data found."
+
+    # ── Least / lowest revenue ─────────────────────────────────────────────────
+    if any(x in q for x in ["least revenue", "lowest revenue", "least", "bottom", "smallest"]):
+        if customers:
+            bottom = customers[-1]
+            return f"{bottom['customer']} ({bottom['industry']}) has the lowest recorded revenue at ₹{bottom['revenue']:,.0f} among ranked customers."
+        return "No sales data found."
+
+    # ── Annual value ───────────────────────────────────────────────────────────
+    if any(x in q for x in ["annual value", "highest annual", "annual_value"]):
+        if customers:
+            lines = [f"{i+1}. {c['customer']} ({c['industry']}) — ₹{c['revenue']:,.0f}" for i, c in enumerate(customers[:5])]
+            return "Customers ranked by revenue (use annual value field for contract value):\n" + "\n".join(lines)
+        return "No customer data found."
+
+
+    # ── Customer count ─────────────────────────────────────────────────────────
+    if any(x in q for x in ["how many customer", "number of customer", "customer count", "many customer", "count of customer"]):
+        return f"The database currently contains {total_customers:,} customer record(s)."
+
+    # ── Show / list customers ──────────────────────────────────────────────────
+    if any(x in q for x in ["show", "list", "all customer", "customer"]) and any(x in q for x in ["show", "list", "top", "display"]):
+        if customers:
+            lines = [f"{i+1}. {c['customer']} ({c['industry']}) — ₹{c['revenue']:,.0f}" for i, c in enumerate(customers[:10])]
+            return f"Top customers by revenue:\n" + "\n".join(lines)
+        return "No customer data found."
+
+    # ── Support: tickets / backlog / load ─────────────────────────────────────
+    if any(x in q for x in ["ticket", "support", "backlog", "load", "open"]):
+        if any(x in q for x in ["breakdown", "by priority", "by status", "split"]) and support:
+            lines = [f"  {s['priority'].capitalize()} / {s['status']} — {s['count']}" for s in support]
+            return f"Support ticket breakdown:\n" + "\n".join(lines) + f"\n\nTotal open: {open_tickets}, High-priority: {high_priority}."
+        if any(x in q for x in ["high priority", "high-priority", "unresolved"]):
+            return f"There are currently {high_priority} high-priority open support ticket(s) out of {open_tickets} total open tickets."
+        return f"Current support backlog: {open_tickets} open ticket(s), including {high_priority} high-priority."
+
+    # ── General summary / snapshot ────────────────────────────────────────────
+    if any(x in q for x in ["overall", "summary", "snapshot", "business health", "overview"]):
+        return (
+            f"Business Signal snapshot:\n"
+            f"  • Customers: {total_customers:,}\n"
+            f"  • Total recorded revenue: ₹{total_revenue:,.0f}\n"
+            f"  • Open support tickets: {open_tickets} ({high_priority} high-priority)\n"
+            f"  • Top customer: {customers[0]['customer'] if customers else 'N/A'}"
+        )
+
+    # ── Generic revenue / sales fallback ─────────────────────────────────────
+    if any(x in q for x in ["revenue", "sales", "sale"]):
+        if customers:
+            top = customers[0]
+            return (
+                f"Total revenue: ₹{total_revenue:,.0f} across {total_customers:,} customer(s). "
+                f"Top earner: {top['customer']} at ₹{top['revenue']:,.0f}."
+            )
+        return f"Total recorded revenue: ₹{total_revenue:,.0f}."
+
+    # ── Generic customers fallback ────────────────────────────────────────────
+    if "customer" in q:
+        if customers:
+            top = customers[0]
+            return f"There are {total_customers:,} customers. Top by revenue: {top['customer']} (₹{top['revenue']:,.0f})."
+        return f"There are {total_customers:,} customer records in the database."
+
+    # ── Document / general fallback ────────────────────────────────────────────
     docs = evidence.get("documents", [])
     if docs:
         return f"I found {len(docs)} relevant document passage(s). Review the evidence shown with the answer before acting."
 
-    return "I can answer questions about the connected customer, sales, support, and indexed document data."
+    return (
+        f"I have access to {total_customers:,} customers, ₹{total_revenue:,.0f} revenue, "
+        f"and {open_tickets} open support tickets. "
+        "Ask about customers, revenue, risk, support tickets, or industries."
+    )
 
 
 def answer(question: str) -> dict[str, Any]:

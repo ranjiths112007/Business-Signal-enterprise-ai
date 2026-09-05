@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.business import customer_risk, top_customers
@@ -21,7 +21,7 @@ def classify_question(question: str) -> str:
 
 def build_business_context(question: str) -> dict[str, Any]:
     q = question.lower()
-    context: dict[str, Any] = {"generated_at": datetime.utcnow().isoformat() + "Z"}
+    context: dict[str, Any] = {"generated_at": datetime.now(timezone.utc).isoformat()}
 
     with get_connection() as conn:
         context["summary"] = {
@@ -40,7 +40,7 @@ def build_business_context(question: str) -> dict[str, Any]:
         context["industry_summary"] = [
             {"industry": row[0], "customers": row[1], "revenue": float(row[2])}
             for row in conn.execute(
-                """SELECT c.industry, COUNT(DISTINCT c.id), COALESCE(SUM(s.amount), 0)
+                """SELECT c.industry, COUNT(DISTINCT c.id), COALESCE(SUM(s.amount), 0) AS revenue
                    FROM customers c
                    LEFT JOIN sales s ON s.customer_id = c.id
                    GROUP BY c.industry

@@ -10,6 +10,17 @@ from app.database import get_connection
 
 router = APIRouter(prefix="/api/v1/data", tags=["Business Data"])
 
+
+def _parse_date(value: str) -> date:
+    """Parse a date string robustly, supporting ISO format and common variants."""
+    value = value.strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y"):
+        try:
+            return date.fromisoformat(value) if fmt == "%Y-%m-%d" else date.strptime(value, fmt).date()  # type: ignore[attr-defined]
+        except ValueError:
+            continue
+    raise ValueError(f"Unrecognised date format: {value!r}. Use YYYY-MM-DD.")
+
 EXPECTED_COLUMNS = {
     "customers": {"name", "industry", "annual_value"},
     "sales": {"customer_id", "amount", "sale_date"},
@@ -143,17 +154,17 @@ async def upload_csv(
             if replace:
                 conn.execute(f"TRUNCATE {dataset} RESTART IDENTITY CASCADE")
             if dataset == "customers":
-                conn.cursor().executemany(
+                conn.executemany(
                     "INSERT INTO customers(name, industry, annual_value) VALUES (%s,%s,%s)",
                     [(r[resolved["name"]].strip(), r[resolved["industry"]].strip(), float(r[resolved["annual_value"]])) for r in rows],
                 )
             elif dataset == "sales":
-                conn.cursor().executemany(
+                conn.executemany(
                     "INSERT INTO sales(customer_id, amount, sale_date) VALUES (%s,%s,%s)",
-                    [(_customer_ref(conn, r[resolved["customer_id"]]), float(r[resolved["amount"]]), date.fromisoformat(r[resolved["sale_date"]].strip())) for r in rows],
+                    [(_customer_ref(conn, r[resolved["customer_id"]]), float(r[resolved["amount"]]), _parse_date(r[resolved["sale_date"]])) for r in rows],
                 )
             else:
-                conn.cursor().executemany(
+                conn.executemany(
                     "INSERT INTO support_tickets(customer_id, priority, status, subject, created_at) VALUES (%s,%s,%s,%s,%s)",
                     [
                         (
@@ -161,7 +172,7 @@ async def upload_csv(
                             r[resolved["priority"]].strip(),
                             r[resolved["status"]].strip(),
                             r[resolved["subject"]].strip(),
-                            date.fromisoformat(r[resolved["created_at"]].strip()),
+                            _parse_date(r[resolved["created_at"]]),
                         )
                         for r in rows
                     ],
