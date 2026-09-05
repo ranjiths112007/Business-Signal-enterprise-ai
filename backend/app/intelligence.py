@@ -13,7 +13,7 @@ def classify_question(question: str) -> str:
     if any(x in q for x in [
         "customer", "revenue", "sales", "sale", "ticket", "support", "risk",
         "churn", "business", "account", "industry", "company", "top", "highest",
-        "lowest", "how many", "total", "average", "trend",
+        "lowest", "how many", "total", "average", "trend", "backlog", "load",
     ]):
         return "business"
     return "general"
@@ -31,10 +31,27 @@ def build_business_context(question: str) -> dict[str, Any]:
             "high_priority_tickets": conn.execute("SELECT COUNT(*) FROM support_tickets WHERE status <> 'closed' AND priority = 'high'").fetchone()[0],
         }
 
+        context["support_breakdown"] = [
+            {"priority": row[0], "status": row[1], "count": row[2]}
+            for row in conn.execute(
+                "SELECT priority, status, COUNT(*) FROM support_tickets GROUP BY priority, status ORDER BY count DESC"
+            ).fetchall()
+        ]
+        context["industry_summary"] = [
+            {"industry": row[0], "customers": row[1], "revenue": float(row[2])}
+            for row in conn.execute(
+                """SELECT c.industry, COUNT(DISTINCT c.id), COALESCE(SUM(s.amount), 0)
+                   FROM customers c
+                   LEFT JOIN sales s ON s.customer_id = c.id
+                   GROUP BY c.industry
+                   ORDER BY revenue DESC"""
+            ).fetchall()
+        ]
+
     customers = top_customers(limit=50)
     if any(x in q for x in [
         "top", "highest", "lowest", "revenue", "sales", "sale", "customer",
-        "account", "company", "who",
+        "account", "company", "who", "generated", "made",
     ]):
         context["top_customers"] = customers[:10]
 
@@ -44,7 +61,14 @@ def build_business_context(question: str) -> dict[str, Any]:
             result = customer_risk(customer["customer_id"])
             if "error" not in result:
                 risks.append(result)
-        context["risk_analysis"] = risks
+        context["risk_analysis"] = sorted(
+            risks,
+            key=lambda item: (
+                item.get("risk_level") != "HIGH",
+                -float(item.get("revenue_drop_percent", 0)),
+                -int(item.get("high_priority_tickets", 0)),
+            ),
+        )
 
     return context
 
