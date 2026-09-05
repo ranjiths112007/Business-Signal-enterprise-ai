@@ -24,7 +24,8 @@ def init_db() -> None:
         demo_enabled = os.getenv("DEMO_DATA", "true").lower() == "true"
         customer_count = conn.execute("SELECT COUNT(*) FROM customers").fetchone()[0]
         if demo_enabled and customer_count == 0:
-            conn.executemany(
+            cursor = conn.cursor()
+            cursor.executemany(
                 "INSERT INTO customers(name, industry, annual_value) VALUES (%s,%s,%s)",
                 [
                     ("Northstar Foods", "Retail", 180000),
@@ -37,7 +38,7 @@ def init_db() -> None:
                     ("BluePeak Media", "Media", 120000),
                 ],
             )
-            conn.executemany(
+            cursor.executemany(
                 "INSERT INTO sales(customer_id, amount, sale_date) VALUES (%s,%s,%s)",
                 [
                     (1, 42000, "2026-04-12"), (1, 38000, "2026-05-18"), (1, 45000, "2026-06-21"), (1, 41000, "2026-08-14"),
@@ -50,7 +51,7 @@ def init_db() -> None:
                     (8, 28000, "2026-04-19"), (8, 26000, "2026-05-21"), (8, 29000, "2026-06-23"), (8, 27000, "2026-08-17"),
                 ],
             )
-            conn.executemany(
+            cursor.executemany(
                 "INSERT INTO support_tickets(customer_id, priority, status, subject, created_at) VALUES (%s,%s,%s,%s,%s)",
                 [
                     (1, "low", "closed", "Invoice question", "2026-07-03"),
