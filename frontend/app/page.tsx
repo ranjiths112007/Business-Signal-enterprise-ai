@@ -183,19 +183,15 @@ export default function Home() {
           <img src={EMBLEM} alt="" />
           <span>Business Signal</span>
         </a>
-        <nav>
-          <a href="#demo">Demo</a>
-          <a href="#data">Data</a>
-          <a href="#results">Results</a>
-        </nav>
+        <nav><a href="#demo">Demo</a><a href="#data">Data</a><a href="#results">Results</a></nav>
         <span className="projectTag">AI ENGINEERING PROJECT</span>
       </header>
 
       <section id="top" className="hero">
         <div className="heroCopy">
-          <div className="eyebrow">BUSINESS SIGNAL</div>
+          <div className="eyebrow">BUSINESS SIGNAL · PROJECT SHOWCASE</div>
           <h1>Ask a business question.<br /><em>Find the signal.</em></h1>
-          <p>Business Signal combines structured data, documents, SQL and AI to produce answers you can trace back to evidence.</p>
+          <p>Explore a small end-to-end AI engineering project that combines structured data, SQL, retrieval and grounded AI answers.</p>
           <div className="heroActions">
             <button className="primary" onClick={() => document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" })}>Try the demo <Icon name="arrow" /></button>
             <a className="textButton" href="https://github.com/ranjiths112007/Business-Signal-enterprise-ai" target="_blank" rel="noreferrer">View source ↗</a>
@@ -205,11 +201,11 @@ export default function Home() {
       </section>
 
       <section className="techStrip" aria-label="Project stack">
-        <span>FastAPI</span><span>PostgreSQL</span><span>SQL agent</span><span>RAG</span><span>Gemini</span><span>Evidence-first answers</span>
+        <span>FastAPI</span><span>PostgreSQL</span><span>SQL agent</span><span>RAG</span><span>Gemini</span><span>Evidence</span>
       </section>
 
       <section id="demo" className="workspace">
-        <div className="sectionTitle"><span className="number">01</span><div><h2>Ask Business Signal</h2><p>Try a question against the connected business data.</p></div></div>
+        <div className="sectionTitle"><span className="number">01</span><div><h2>Ask Business Signal</h2><p>Ask a question and inspect the answer plus its evidence.</p></div></div>
         <div className="askCard">
           <div className="askHeader"><Icon name="spark" /><span>Natural-language business analysis</span></div>
           <textarea value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") ask(); }} placeholder="Which customers are at risk and why?" />
@@ -219,7 +215,7 @@ export default function Home() {
       </section>
 
       <section id="data" className="workspace">
-        <div className="sectionTitle"><span className="number">02</span><div><h2>Bring in data</h2><p>Use the demo files or inspect your own CSV. Column names can differ.</p></div></div>
+        <div className="sectionTitle"><span className="number">02</span><div><h2>Optional: use your own CSV</h2><p>The demo data is already included. Bring your own file only when you want to test the mapper.</p></div></div>
         <div className="dataCard">
           <div className="dataTop"><div className="tabs">{DATASETS.map(([value, label]) => <button key={value} className={dataset === value ? "active" : ""} onClick={() => { setDataset(value); setFile(null); setAnalysis(null); setMapping({}); }}>{label}</button>)}</div><a className="sampleLink" href={`${SAMPLE_BASE}/${dataset}.csv`} target="_blank" rel="noreferrer">Open demo CSV ↗</a></div>
           <div className={`dropzone ${dragging ? "dragging" : ""} ${file ? "selected" : ""}`} onDragEnter={(e) => { e.preventDefault(); setDragging(true); }} onDragOver={(e) => e.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={drop} onClick={() => inputRef.current?.click()}>
@@ -234,20 +230,20 @@ export default function Home() {
             <div className="mappingGrid">{analysis.requirements.map((field) => <label key={field}><span>{LABELS[field] || field}</span><select value={mapping[field] || ""} onChange={(e) => setMapping((m) => ({ ...m, [field]: e.target.value || null }))}><option value="">Choose column</option>{analysis.columns.map((column) => <option value={column} key={column}>{column}</option>)}</select></label>)}</div>
             <div className="mappingFooter"><span>{analysis.ready ? <><Icon name="check" /> All required fields mapped</> : "Map the missing fields to continue."}</span><div><label className="replace"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Replace dataset</label><button className="primary compact" onClick={importData} disabled={!analysis.ready || importing}>{importing ? "Importing…" : "Import data"}<Icon name="arrow" /></button></div></div>
           </div>}
-          <div className="dataNote"><strong>What the demo expects</strong><span>Customers: company, industry, annual value</span><span>Sales: customer reference, amount, date</span><span>Support: customer reference, priority, status, issue, date</span><small>The importer maps common column-name variations for you.</small></div>
+          <div className="dataNote"><strong>Demo CSVs</strong><span>Customers: company, industry, annual value</span><span>Sales: customer name, amount, date</span><span>Support: customer name, priority, status, issue, date</span><small>Column names can differ in your own files; the mapper handles common variations.</small></div>
           {message && <div className="success">{message}</div>}
           {error && <div className="error">{error}</div>}
         </div>
       </section>
 
       <section id="results" className="workspace">
-        <div className="sectionTitle"><span className="number">03</span><div><h2>What the data says</h2><p>Only values read from the backend are shown here.</p></div></div>
+        <div className="sectionTitle"><span className="number">03</span><div><h2>What the demo data says</h2><p>These values come from the local database seeded for this project.</p></div></div>
         <div className="stats"><div><span>Customers</span><strong>{count.toLocaleString()}</strong></div><div><span>Recorded revenue</span><strong>₹{revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong></div><div><span>Open tickets</span><strong>{tickets.toLocaleString()}</strong></div></div>
         <div className="resultsGrid">
-          <div className="resultCard"><div className="resultHeader"><div><span className="resultKicker"><Icon name="users" /> CUSTOMER DATA</span><h3>{count ? "Customers" : "No customer data yet"}</h3></div>{customers.length > 6 && <button className="textButton" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "View all"}</button>}</div>
-            {customers.length ? visibleCustomers.map((customer) => <div className="customer" key={customer.customer_id}><div className="avatar">{customer.customer.slice(0, 1).toUpperCase()}</div><div><strong>{customer.customer}</strong><small>{customer.industry || "No industry"}</small></div><b>₹{Number(customer.revenue || 0).toLocaleString()}</b></div>) : <div className="empty">Import the demo customer CSV to populate this section.</div>}
+          <div className="resultCard"><div className="resultHeader"><div><span className="resultKicker"><Icon name="users" /> CUSTOMER DATA</span><h3>{count ? "Demo customers" : "No customer data yet"}</h3></div>{customers.length > 6 && <button className="textButton" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show less" : "View all"}</button>}</div>
+            {customers.length ? visibleCustomers.map((customer) => <div className="customer" key={customer.customer_id}><div className="avatar">{customer.customer.slice(0, 1).toUpperCase()}</div><div><strong>{customer.customer}</strong><small>{customer.industry || "No industry"}</small></div><b>₹{Number(customer.revenue || 0).toLocaleString()}</b></div>) : <div className="empty">No demo data loaded yet.</div>}
           </div>
-          <div className="resultCard"><div className="resultHeader"><div><span className="resultKicker"><Icon name="database" /> EVIDENCE</span><h3>{evidence ? "Trace from the answer" : "Ready for evidence"}</h3></div></div>{evidence ? <pre>{JSON.stringify(evidence, null, 2)}</pre> : <div className="evidenceEmpty"><p>Ask a question to see the structured evidence used by Business Signal.</p></div>}</div>
+          <div className="resultCard"><div className="resultHeader"><div><span className="resultKicker"><Icon name="database" /> EVIDENCE</span><h3>{evidence ? "Trace from the answer" : "Ready for evidence"}</h3></div></div>{evidence ? <pre>{JSON.stringify(evidence, null, 2)}</pre> : <div className="evidenceEmpty"><p>Run a question above to see the structured evidence returned by Business Signal.</p></div>}</div>
         </div>
       </section>
 
